@@ -24,29 +24,58 @@
   (with-channel request channel
     (let [id (str (UUID/randomUUID))]
       (println "New connection:" id)
-      (on-close channel (fn [_]
-                          (println "Connection closed:" id)
-                          (swap! players (fn [ps] (remove #(= (:id %) id) ps)))))
+      (on-close
+        channel
+        (fn [_]
+          (println "Connection closed:" id)
+          (swap! players (fn [ps] (remove #(= (:id %) id) ps)))))
+      (on-receive
+        channel
+        (fn [data]
+          (let [rpc (json/read-str data)
+                command (rpc "command")
+                arguments (rpc "arguments")]
+            (case command
+              "start-movement" (swap! players (fn [ps]
+                                                (map (fn [p]
+                                                       (if (= (:id p) id)
+                                                         (let [direction (keyword (first arguments))
+                                                               position ((:position p) ({:left 0, :up 1, :right 0, :down 1} direction))]
+                                                           (assoc p :movement {:direction direction, :position position, :time (System/nanoTime)}))
+                                                         p))
+                                                     ps)))
+              "stop-movement" (swap! players (fn [ps]
+                                               (map (fn [p]
+                                                      (if (= (:id p) id)
+                                                        (assoc p :movement nil)
+                                                        p))
+                                                    ps)))))))
       (go-loop []
         (let [snapshot (<! snapshots)]
           (when (open? channel)
             (send! channel (json/write-str snapshot))
             (recur))))
-      (swap! players conj {:id id, :directions {:right {:position 0, :time (System/nanoTime)}}, :position [0 0]}))))
+      (swap! players conj {:id id, :movement nil, :position [0 0]}))))
 
 (defn push-state [_ _ _ _]
   (go (>! snapshots {:players (map :position @players), :board @board})))
 
-(defn reposition [{{:keys [right]} :directions, position :position, :as player}]
-  (let [time (System/nanoTime)]
-    (if-let [{r-p :position, r-t :time} right]
-      (assoc player :position [(+ r-p (* (/ (- time r-t) 1e9) 0.2)) (second position)]))))
+(defn reposition [{{direction :direction, position :position, then :time} :movement, [x y] :position, :as player}]
+  (let [now (System/nanoTime)]
+    (assoc player
+           :position
+           (case direction
+             :left [(- position (* (/ (- now then) 1e9) 0.5)) y]
+             :up [x (- position (* (/ (- now then) 1e9) 0.5))]
+             :right [(+ position (* (/ (- now then) 1e9) 0.5)) y]
+             :down [x (+ position (* (/ (- now then) 1e9) 0.5))]
+             [x y]))))
 
 (defn -main []
   (println "Starting server")
   (go-loop []
-    (swap! players (constantly (map reposition @players)))
-    (<! (timeout 33))
+    (swap! players (fn [ps] (map reposition ps)))
+    (<! (timeout 17))
     (recur))
   (add-watch players :push-state push-state)
   (add-watch board :push-state push-state)
