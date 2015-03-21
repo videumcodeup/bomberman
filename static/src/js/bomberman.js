@@ -40,15 +40,13 @@
 
   document.addEventListener("keyup", function (evt) {
     var direction = evt.keyCode.toString();
-    var lastDirection = _.last(movingDirections);
-    if (direction !== lastDirection || evt.repeat) {
+    if (!_.includes(movingDirections, direction) || evt.repeat) {
       return;
     }
     _.pull(movingDirections, direction);
     stopMovementData = JSON.stringify({command: "stop-movement", arguments: []});
     ws.send(stopMovementData);
 
-    console.log("movingDirections", movingDirections);
     if (movingDirections.length > 0) {
       direction = _.last(movingDirections);
       startMovementData = JSON.stringify({command: "start-movement", arguments: [movementDirections[direction]]});
