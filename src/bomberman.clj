@@ -60,15 +60,18 @@
 (defn push-state [_ _ _ _]
   (go (>! snapshots {:players (map :position @players), :board @board})))
 
+(defn move [summer position now then]
+  (summer position (* (/ (- now then) 1e9) 0.5)))
+
 (defn reposition [{{direction :direction, position :position, then :time} :movement, [x y] :position, :as player}]
   (let [now (System/nanoTime)]
     (assoc player
            :position
            (case direction
-             :left [(- position (* (/ (- now then) 1e9) 0.5)) y]
-             :up [x (- position (* (/ (- now then) 1e9) 0.5))]
-             :right [(+ position (* (/ (- now then) 1e9) 0.5)) y]
-             :down [x (+ position (* (/ (- now then) 1e9) 0.5))]
+             :left [(move - position now then) y]
+             :up [x (move - position now then)]
+             :right [(move + position now then) y]
+             :down [x (move + position now then)]
              [x y]))))
 
 (defn -main []
