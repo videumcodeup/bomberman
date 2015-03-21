@@ -27,19 +27,21 @@
     render(JSON.parse(message.data));
   };
 
+  var lastDirection  = "";
   var movementDirections = {"87": "up", "83": "down", "65": "left", "68": "right"};
   document.addEventListener("keydown", function (evt) {
     var direction = evt.keyCode.toString();
     if (!_.has(movementDirections, direction) || evt.repeat) {
       return;
     }
+    lastDirection = direction;
     startMovementData = JSON.stringify({command: "start-movement", arguments: [movementDirections[direction]]});
     ws.send(startMovementData);
   });
 
   document.addEventListener("keyup", function (evt) {
     var direction = evt.keyCode.toString();
-    if (!_.has(movementDirections, direction) || evt.repeat) {
+    if (direction !== lastDirection || evt.repeat) {
       return;
     }
     stopMovementData = JSON.stringify({command: "stop-movement", arguments: []});
