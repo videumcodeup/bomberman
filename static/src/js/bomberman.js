@@ -14,7 +14,7 @@
   var renderPlayers = function (players) {
     _.each(players, function (player) {
       ctx.fillStyle = "rgb(255, 255, 255)";
-      ctx.fillRect(player[0] * 50 * 10, player[1] * 50 * 10, 30, 30);
+      ctx.fillRect(Math.floor(player[0] * 50 * 10), Math.floor(player[1] * 50 * 10), 30, 30);
     });
   };
   var render = function (game) {
