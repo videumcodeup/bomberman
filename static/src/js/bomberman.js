@@ -85,7 +85,7 @@
     _.each(players, function (player) {
       var sprite = determineSprite(player);
       var playerHeight = sprite.height * (playerSize / sprite.width);
-      ctx.drawImage(sprite, Math.floor(player.dimension.x * boardSize) - (playerSize / 2), Math.floor(player.dimension.y * boardSize) - (playerHeight / 2), playerSize, playerHeight);
+      ctx.drawImage(sprite, Math.floor(player.dimension.x * boardSize) - (playerSize / 2), Math.floor(player.dimension.y * boardSize) - (playerSize / 2) - (playerHeight / 2), playerSize, playerHeight);
     });
   };
   var render = function () {
