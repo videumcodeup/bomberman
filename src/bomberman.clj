@@ -4,6 +4,9 @@
             [org.httpkit.server :refer :all])
   (:import [java.util UUID]))
 
+(defn div [x y]
+  (with-precision 5 (/ (bigdec x) (bigdec y))))
+
 (defprotocol Walkable)
 
 (defrecord Dimension [size x y])
@@ -21,15 +24,15 @@
 
 (def tile-root 10)
 
-(def tile-size (/ 1 tile-root))
+(def tile-size (div 1 tile-root))
 
 (def player-size 0.06)
 
 (def initial-board
   (vec (map (fn [m i]
               (let [d (Dimension. tile-size
-                                  (+ (/ (mod i tile-root) tile-root) (/ tile-size 2))
-                                  (+ (/ (Math/floor (/ i tile-root)) tile-root) (/ tile-size 2)))]
+                                  (+ (div (mod i tile-root) tile-root) (div tile-size 2))
+                                  (+ (div (Math/floor (div i tile-root)) tile-root) (div tile-size 2)))]
                 (case m :g (Grass. m d) :s (Stone. m d) :w (Wood. m d))))
             [:g :s :s :w :s :w :w :s :w :w
              :g :g :g :g :w :s :w :s :s :w
@@ -57,44 +60,57 @@
 
 (def opposite-axis {:x :y, :y :x})
 
+(defn inside? [target {:keys [x y]}]
+  (let [half (div (:size target) 2)]
+    (and (> x (- (:x target) half)) (< x (+ (:x target) half))
+         (> y (- (:y target) half)) (< y (+ (:y target) half)))))
+
+(defn square-dimensions [{:keys [x y], :as dimension}]
+  (let [half (div (:size dimension) 2)]
+    [(assoc dimension :x (- x half) :y (- y half)) (assoc dimension :x (+ x half) :y (- y half))
+     (assoc dimension :x (- x half) :y (+ y half)) (assoc dimension :x (+ x half) :y (+ y half))]))
+
+(defn overlaps? [target dimension]
+  (some #(inside? target %) (square-dimensions dimension)))
+
 (defn edge-dimension [direction dimension]
   (let [axis (axises direction)]
     (assoc
       dimension
       axis
-      ((adders direction) (axis dimension) (/ (:size dimension) 2)))))
+      ((adders direction) (axis dimension) (div (:size dimension) 2)))))
 
 (defn tile-from-dimension [board {:keys [x y]}]
-  (get board (+ (* (int (float (/ y tile-size))) tile-root)
-                (int (float (/ x tile-size))))))
+  (get board (+ (* (int (div y tile-size)) tile-root)
+                (int (div x tile-size)))))
 
 (defn line-from-positions [direction from to]
-  (loop [steps [(/ (Math/floor (* from tile-root)) tile-root)]
-         to (/ (Math/floor (* to tile-root)) tile-root)]
-    (let [step (/ (Math/round (float (* ((adders direction) (last steps) tile-size) tile-root))) tile-root)]
+  (loop [steps [(div (Math/floor (* from tile-root)) tile-root)]
+         to (div (Math/floor (* to tile-root)) tile-root)]
+    (let [step (div (Math/round (float (* ((adders direction) (last steps) tile-size) tile-root))) tile-root)]
       (if ((checkers direction) step to)
         steps
         (recur (conj steps step) to)))))
 
-(defn tiles-from-line [direction board {:keys [x y], :as from} to]
-  (let [axis (axises direction)]
-    (map #(tile-from-dimension board (assoc from axis %))
+(defn tiles-from-line [direction board from to]
+  (let [axis (axises direction)
+        o-axis (opposite-axis axis)
+        half (div (:size from) 2)
+        dimension-sub (assoc from o-axis (- (o-axis from) half))
+        dimension-add (assoc from o-axis (+ (o-axis from) half))]
+    (map (fn [pos]
+           (filter #(overlaps? (:dimension %) (assoc from axis pos))
+                   [(tile-from-dimension board (assoc dimension-sub axis pos))
+                    (tile-from-dimension board (assoc dimension-add axis pos))]))
          (line-from-positions direction (axis from) (axis to)))))
-
-(defn overlapping-tiles-from-line [direction board from to]
-  (let [axis (opposite-axis (axises direction))
-        half (/ (:size from) 2)]
-    (map vector
-         (tiles-from-line direction board (assoc from axis (- (axis from) half)) (assoc to axis (- (axis to) half)))
-         (tiles-from-line direction board (assoc from axis (+ (axis from) half)) (assoc to axis (+ (axis to) half))))))
 
 (defn center [direction dimension]
   (let [axis (axises direction)]
-    (assoc dimension axis ((adders (opposite-direction direction)) (axis dimension) (/ (:size dimension) 2)))))
+    (assoc dimension axis ((adders (opposite-direction direction)) (axis dimension) (div (:size dimension) 2)))))
 
 (defn distance [direction a b]
   (let [axis (axises direction)]
-    (Math/abs (- (axis a) (axis b)))))
+    (div (Math/abs (float (- (axis a) (axis b)))) 1)))
 
 (defn closest-dimension [direction target dimensions]
   (loop [ds (next dimensions)
@@ -110,10 +126,10 @@
 
 (defn constrain [board direction player from to]
   (let [axis (axises direction)
-        tile-line (overlapping-tiles-from-line direction
-                                               board
-                                               (edge-dimension (opposite-direction direction) from)
-                                               (edge-dimension direction to))
+        tile-line (tiles-from-line direction
+                                   board
+                                   (edge-dimension (opposite-direction direction) from)
+                                   (edge-dimension direction to))
         suggested (center
                     direction
                     (assoc
@@ -134,8 +150,8 @@
     (assoc
       dimension
       axis
-      (let [p ((adders direction) (axis dimension) (* (/ (- to from) 1e9) 0.5))]
-        (max (min (- 1 (/ player-size 2)) p) (/ player-size 2))))))
+      (let [p ((adders direction) (axis dimension) (* (div (- to from) 1e9) 0.5))]
+        (max (min (- 1 (div player-size 2)) p) (div player-size 2))))))
 
 (defn reposition [board now {{direction :direction, from :dimension, then :time, :as movement} :movement, dimension :dimension, :as player}]
   (if movement
@@ -178,6 +194,7 @@
                                                       (if (= (:id p) id)
                                                         (assoc p :movement {:direction (keyword (first arguments))
                                                                             :dimension (:dimension p)
+                                                                            :speed 0.5
                                                                             :time (System/nanoTime)})
                                                         p))
                                                     (:players g)))))
