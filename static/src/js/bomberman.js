@@ -67,6 +67,7 @@
       "images/Bomberman/Left/f06.png",
       "images/Bomberman/Left/f07.png"],
   });
+  var game = null;
   var boardSize = 640;
   var tileRoot = 10;
   var tileSize = boardSize / tileRoot;
@@ -87,14 +88,17 @@
       ctx.drawImage(sprite, Math.floor(player.dimension.x * boardSize) - (playerSize / 2), Math.floor(player.dimension.y * boardSize) - (playerHeight / 2), playerSize, playerHeight);
     });
   };
-  var render = function (game) {
-    ctx.clearRect(0, 0, boardSize, boardSize);
-    renderBoard(game.board);
-    renderPlayers(game.players);
+  var render = function () {
+    if (game) {
+      ctx.clearRect(0, 0, boardSize, boardSize);
+      renderBoard(game.board);
+      renderPlayers(game.players);
+    }
+    requestAnimationFrame(render);
   };
   var ws = new WebSocket("ws://127.0.0.1:3000");
   ws.onmessage = function (message) {
-    render(JSON.parse(message.data));
+    game = JSON.parse(message.data);
   };
   var movingDirections = [];
   var movementDirections = {"87": "up", "83": "down", "65": "left", "68": "right"};
@@ -107,7 +111,6 @@
     startMovementData = JSON.stringify({command: "start-movement", arguments: [movementDirections[direction]]});
     ws.send(startMovementData);
   });
-
   document.addEventListener("keyup", function (evt) {
     var direction = evt.keyCode.toString();
     if (!_.includes(movingDirections, direction) || evt.repeat) {
@@ -123,4 +126,5 @@
       ws.send(startMovementData);
     }
   });
+  requestAnimationFrame(render);
 }());
