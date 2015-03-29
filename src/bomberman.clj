@@ -1,5 +1,5 @@
 (ns bomberman
-  (:require [clojure.core.async :refer [<! <!! >! >!! chan go go-loop timeout]]
+  (:require [clojure.core.async :refer [<! <!! >! >!! chan go go-loop pub put! sub timeout]]
             [clojure.data.json :as json]
             [org.httpkit.server :refer :all])
   (:import [java.util UUID]))
@@ -21,6 +21,8 @@
 (defrecord Player [dimension])
 
 (def snapshots (chan))
+
+(def snapshots-pub (pub snapshots :snapshot))
 
 (def tile-root 10)
 
@@ -167,8 +169,9 @@
     player))
 
 (defn push-game [_ _ _ g]
-  (go (>! snapshots (merge g {:board (map :name (:board g))
-                              :players (:players g)}))))
+  (put! snapshots {:snapshot :snapshot
+                   :data (json/write-str (merge g {:board (map :name (:board g))
+                                                   :players (:players g)}))}))
 
 (defn handler [request]
   (with-channel request channel
@@ -207,11 +210,13 @@
                                                        (assoc p :movement nil)
                                                        p))
                                                    (:players g)))))))))
-      (go-loop []
-        (let [snapshot (<! snapshots)]
-          (when (open? channel)
-            (send! channel (json/write-str snapshot))
-            (recur))))
+      (let [snaps (chan)]
+        (sub snapshots-pub :snapshot snaps)
+        (go-loop []
+          (let [{data :data} (<! snaps)]
+            (when (open? channel)
+              (send! channel data)
+              (recur)))))
       (swap! game (fn [g] (assoc g :players (conj (:players g) {:id id, :movement nil, :dimension (Dimension. player-size 0.05 0.05)})))))))
 
 (defn -main []
