@@ -145,15 +145,15 @@
                       player-size))]
     (closest-dimension direction from [(assoc from axis (axis suggested)) to])))
 
-(defn move [direction dimension from to]
+(defn move [direction speed dimension from to]
   (let [axis (axises direction)]
     (assoc
       dimension
       axis
-      (let [p ((adders direction) (axis dimension) (* (div (- to from) 1e9) 0.5))]
+      (let [p ((adders direction) (axis dimension) (* (div (- to from) 1e9) speed))]
         (max (min (- 1 (div player-size 2)) p) (div player-size 2))))))
 
-(defn reposition [board now {{direction :direction, from :dimension, then :time, :as movement} :movement, dimension :dimension, :as player}]
+(defn reposition [board now {{direction :direction, from :dimension, speed :speed, then :time, :as movement} :movement, dimension :dimension, :as player}]
   (if movement
     (assoc
       player
@@ -163,7 +163,7 @@
         direction
         player
         from
-        (move direction from then now)))
+        (move direction speed from then now)))
     player))
 
 (defn push-game [_ _ _ g]
