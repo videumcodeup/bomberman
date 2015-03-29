@@ -1,24 +1,26 @@
 (function () {
+  var boardSize = 500;
+  var tileRoot = 10;
+  var tileSize = boardSize / tileRoot;
+  var playerSize = boardSize * 0.06;
   var canvas = document.getElementById("board");
-  canvas.width = 500;
-  canvas.height = 500;
+  canvas.width = boardSize;
+  canvas.height = boardSize;
   var ctx = canvas.getContext("2d");
   var renderBoard = function (board) {
-    _.each(board, function (row, y) {
-      _.each(row, function (tile, x) {
-        ctx.fillStyle = {g: "rgb(1, 166, 17)", s: "rgb(139, 141, 122)", w: "rgb(102, 51, 0)"}[tile];
-        ctx.fillRect(x * 50, y * 50, 50, 50);
-      });
+    _.each(board, function (tile, i) {
+      ctx.fillStyle = {g: "rgb(1, 166, 17)", s: "rgb(139, 141, 122)", w: "rgb(102, 51, 0)"}[tile];
+      ctx.fillRect((i % tileRoot) * tileSize, Math.floor(i / tileRoot) * tileSize, tileSize, tileSize);
     });
   };
   var renderPlayers = function (players) {
     _.each(players, function (player) {
       ctx.fillStyle = "rgb(255, 255, 255)";
-      ctx.fillRect(Math.floor(player[0] * 50 * 10), Math.floor(player[1] * 50 * 10), 30, 30);
+      ctx.fillRect(Math.floor(player[0] * boardSize) - (playerSize / 2), Math.floor(player[1] * boardSize) - (playerSize / 2), playerSize, playerSize);
     });
   };
   var render = function (game) {
-    ctx.clearRect(0, 0, 500, 500);
+    ctx.clearRect(0, 0, boardSize, boardSize);
     renderBoard(game.board);
     renderPlayers(game.players);
   };
