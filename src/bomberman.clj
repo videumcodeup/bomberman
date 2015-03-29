@@ -1,5 +1,5 @@
 (ns bomberman
-  (:require [clojure.core.async :refer [<! <!! >! >!! chan go go-loop pub put! sub timeout]]
+  (:require [clojure.core.async :refer [<! <!! >! >!! chan close! go go-loop pub put! sub timeout]]
             [clojure.data.json :as json]
             [org.httpkit.server :refer :all])
   (:import [java.util UUID]))
@@ -36,7 +36,6 @@
                                   (+ (div (mod i tile-root) tile-root) (div tile-size 2))
                                   (+ (div (Math/floor (div i tile-root)) tile-root) (div tile-size 2)))]
                 (case m :g (Grass. m d) :s (Stone. m d) :w (Wood. m d))))
-
             [:s :s :s :s :s :s :s :s :s :s :s :s
              :s :g :s :s :w :s :w :w :s :w :w :s
              :s :g :g :g :g :w :s :w :s :s :w :s
@@ -171,19 +170,24 @@
         (move direction speed from then now)))
     player))
 
+(defn game->json [game]
+  (json/write-str (assoc game :board (map :name (:board game)))))
+
 (defn push-game [_ _ _ g]
   (put! snapshots {:snapshot :snapshot
-                   :data (json/write-str (merge g {:board (map :name (:board g))
-                                                   :players (:players g)}))}))
+                   :data (game->json g)}))
 
 (defn handler [request]
   (with-channel request channel
-    (let [id (str (UUID/randomUUID))]
+    (let [snaps (chan)
+          id (str (UUID/randomUUID))]
       (println "New connection:" id)
+      (sub snapshots-pub :snapshot snaps)
       (on-close
         channel
         (fn [_]
           (println "Connection closed:" id)
+          (close! snaps)
           (swap! game (fn [g] (assoc g :players (remove #(= (:id %) id) (:players g)))))))
       (on-receive
         channel
@@ -213,14 +217,13 @@
                                                        (assoc p :movement nil)
                                                        p))
                                                    (:players g)))))))))
-      (let [snaps (chan)]
-        (sub snapshots-pub :snapshot snaps)
-        (go-loop []
-          (let [{data :data} (<! snaps)]
-            (when (open? channel)
-              (send! channel data)
-              (recur)))))
-      (swap! game (fn [g] (assoc g :players (conj (:players g) {:id id, :movement nil, :dimension (Dimension. player-size 0.15 0.15)})))))))
+      (go-loop []
+        (let [snap (<! snaps)]
+          (when (and snap (open? channel))
+            (send! channel (:data snap))
+            (recur))))
+      (swap! game (fn [g] (assoc g :players (conj (:players g) {:id id, :movement nil, :dimension (Dimension. player-size (+ tile-size (div tile-size 2)) (+ tile-size (div tile-size 2)))}))))
+      (send! channel (game->json @game)))))
 
 (defn -main []
   (println "Starting server")
