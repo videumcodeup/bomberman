@@ -69,7 +69,7 @@
   });
   var game = null;
   var boardSize = 640;
-  var tileRoot = 10;
+  var tileRoot = 12;
   var tileSize = boardSize / tileRoot;
   var playerSize = boardSize * 0.06;
   var canvas = document.getElementById("board");

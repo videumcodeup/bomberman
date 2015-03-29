@@ -24,7 +24,7 @@
 
 (def snapshots-pub (pub snapshots :snapshot))
 
-(def tile-root 10)
+(def tile-root 12)
 
 (def tile-size (div 1 tile-root))
 
@@ -36,16 +36,19 @@
                                   (+ (div (mod i tile-root) tile-root) (div tile-size 2))
                                   (+ (div (Math/floor (div i tile-root)) tile-root) (div tile-size 2)))]
                 (case m :g (Grass. m d) :s (Stone. m d) :w (Wood. m d))))
-            [:g :s :s :w :s :w :w :s :w :w
-             :g :g :g :g :w :s :w :s :s :w
-             :w :s :s :s :g :g :w :s :w :w
-             :w :g :s :w :w :g :s :s :g :g
-             :s :g :w :w :s :w :g :w :w :s
-             :w :g :s :g :g :w :g :s :g :g
-             :s :w :w :w :g :g :s :s :w :s
-             :s :g :s :w :s :g :w :s :w :g
-             :g :w :g :s :s :g :w :g :w :g
-             :w :w :w :g :w :w :s :g :g :g]
+
+            [:s :s :s :s :s :s :s :s :s :s :s :s
+             :s :g :s :s :w :s :w :w :s :w :w :s
+             :s :g :g :g :g :w :s :w :s :s :w :s
+             :s :w :s :s :s :g :g :w :s :w :w :s
+             :s :w :g :s :w :w :g :s :s :g :g :s
+             :s :s :g :w :w :s :w :g :w :w :s :s
+             :s :w :g :s :g :g :w :g :s :g :g :s
+             :s :s :w :w :w :g :g :s :s :w :s :s
+             :s :s :g :s :w :s :g :w :s :w :g :s
+             :s :g :w :g :s :s :g :w :g :w :g :s
+             :s :w :w :w :g :w :w :s :g :g :g :s
+             :s :s :s :s :s :s :s :s :s :s :s :s]
             (range))))
 
 (def game (atom {:board initial-board, :players []}))
@@ -217,7 +220,7 @@
             (when (open? channel)
               (send! channel data)
               (recur)))))
-      (swap! game (fn [g] (assoc g :players (conj (:players g) {:id id, :movement nil, :dimension (Dimension. player-size 0.05 0.05)})))))))
+      (swap! game (fn [g] (assoc g :players (conj (:players g) {:id id, :movement nil, :dimension (Dimension. player-size 0.15 0.15)})))))))
 
 (defn -main []
   (println "Starting server")
