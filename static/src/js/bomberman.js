@@ -16,7 +16,7 @@
   var renderPlayers = function (players) {
     _.each(players, function (player) {
       ctx.fillStyle = "rgb(255, 255, 255)";
-      ctx.fillRect(Math.floor(player[0] * boardSize) - (playerSize / 2), Math.floor(player[1] * boardSize) - (playerSize / 2), playerSize, playerSize);
+      ctx.fillRect(Math.floor(player.dimension.x * boardSize) - (playerSize / 2), Math.floor(player.dimension.y * boardSize) - (playerSize / 2), playerSize, playerSize);
     });
   };
   var render = function (game) {

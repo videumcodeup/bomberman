@@ -152,7 +152,7 @@
 
 (defn push-game [_ _ _ g]
   (go (>! snapshots (merge g {:board (map :name (:board g))
-                              :players (map (fn [{{:keys [x y]} :dimension}] [x y]) (:players g))}))))
+                              :players (:players g)}))))
 
 (defn handler [request]
   (with-channel request channel
