@@ -47,9 +47,15 @@
 
 (def axises {:left :x, :up :y, :right :x, :down :y})
 
+(def corresponding-axis-directions {:left :up, :up :left, :right :bottom, :bottom :right})
+
 (def adders {:left -, :up -, :right +, :down +})
 
+(def checkers {:left <, :up <, :right >, :down >})
+
 (def opposite-direction {:left :right, :up :down, :right :left, :down :up})
+
+(def opposite-axis {:x :y, :y :x})
 
 (defn edge-dimension [direction dimension]
   (let [axis (axises direction)]
@@ -62,25 +68,29 @@
   (get board (+ (* (int (float (/ y tile-size))) tile-root)
                 (int (float (/ x tile-size))))))
 
-(defn line-from-dimensions [from to]
-  (let [[op checker] (if (> to from) [+ >] [- <])]
-    (loop [steps [(/ (Math/floor (* from tile-root)) tile-root)]
-           to (/ (Math/floor (* to tile-root)) tile-root)]
-      (let [step (/ (Math/round (float (* (op (last steps) tile-size) tile-root))) tile-root)]
-        (if (checker step to)
-          steps
-          (recur (conj steps step) to))))))
+(defn line-from-positions [direction from to]
+  (loop [steps [(/ (Math/floor (* from tile-root)) tile-root)]
+         to (/ (Math/floor (* to tile-root)) tile-root)]
+    (let [step (/ (Math/round (float (* ((adders direction) (last steps) tile-size) tile-root))) tile-root)]
+      (if ((checkers direction) step to)
+        steps
+        (recur (conj steps step) to)))))
 
-(defn tiles-from-line [board {:keys [x y], :as from} to]
-  (let [[a b pos var] (if (= (:x from) (:x to))
-                        [(:y from) (:y to) {:x x} :y]
-                        [(:x from) (:x to) {:y y} :x])]
-    (map #(tile-from-dimension board (assoc pos var %))
-         (line-from-dimensions a b))))
+(defn tiles-from-line [direction board {:keys [x y], :as from} to]
+  (let [axis (axises direction)]
+    (map #(tile-from-dimension board (assoc from axis %))
+         (line-from-positions direction (axis from) (axis to)))))
+
+(defn overlapping-tiles-from-line [direction board from to]
+  (let [axis (opposite-axis (axises direction))
+        half (/ (:size from) 2)]
+    (map vector
+         (tiles-from-line direction board (assoc from axis (- (axis from) half)) (assoc to axis (- (axis to) half)))
+         (tiles-from-line direction board (assoc from axis (+ (axis from) half)) (assoc to axis (+ (axis to) half))))))
 
 (defn center [direction dimension]
   (let [axis (axises direction)]
-    (assoc dimension axis ((adders direction) (axis dimension) (/ (:size dimension) 2)))))
+    (assoc dimension axis ((adders (opposite-direction direction)) (axis dimension) (/ (:size dimension) 2)))))
 
 (defn distance [direction a b]
   (let [axis (axises direction)]
@@ -99,9 +109,11 @@
           (recur (next ds) closest-dimension closest-distance))))))
 
 (defn constrain [board direction player from to]
-  (let [tile-line (tiles-from-line board
-                                   (edge-dimension (opposite-direction direction) from)
-                                   (edge-dimension direction to))
+  (let [axis (axises direction)
+        tile-line (overlapping-tiles-from-line direction
+                                               board
+                                               (edge-dimension (opposite-direction direction) from)
+                                               (edge-dimension direction to))
         suggested (center
                     direction
                     (assoc
@@ -110,12 +122,12 @@
                         (:dimension
                           (loop [tiles (next tile-line)
                                  tile (first tile-line)]
-                            (if (and tiles (satisfies? Walkable (first tiles)))
+                            (if (and tiles (every? #(satisfies? Walkable %) (first tiles)))
                               (recur (next tiles) (first tiles))
-                              tile))))
+                              (first tile)))))
                       :size
                       player-size))]
-    (closest-dimension direction from [suggested to])))
+    (closest-dimension direction from [(assoc from axis (axis suggested)) to])))
 
 (defn move [direction dimension from to]
   (let [axis (axises direction)]
