@@ -218,7 +218,10 @@
   (println "Starting server")
   (go-loop []
     (let [now (System/nanoTime)]
-      (swap! game (fn [g] (assoc g :players (map #(reposition (:board g) now %) (:players g)))))
+      (let [old @game
+            new (assoc old :players (map #(reposition (:board old) now %) (:players old)))]
+        (if (not= old new)
+          (swap! game (constantly new))))
       (<! (timeout (/ 1000 60)))
       (recur)))
   (add-watch game :push-game push-game)
