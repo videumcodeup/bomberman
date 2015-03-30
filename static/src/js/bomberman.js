@@ -1,4 +1,17 @@
 (function () {
+  var editor = ace.edit("editor");
+  editor.setTheme("ace/theme/monokai");
+  editor.getSession().setTabSize(2);
+  editor.getSession().setUseSoftTabs(true);
+  editor.getSession().setMode("ace/mode/javascript");
+  editor.commands.addCommand({
+    name: 'save',
+    bindKey: 'Ctrl-s',
+    exec: function(editor) {
+      eval(editor.getValue());
+    }
+  });
+  var bind = Mousetrap.bind;
   var newImage = function (path) {
     return _.tap(new Image(), function (img) {
       img.src = path;
@@ -100,31 +113,5 @@
   ws.onmessage = function (message) {
     game = JSON.parse(message.data);
   };
-  var movingDirections = [];
-  var movementDirections = {"87": "up", "83": "down", "65": "left", "68": "right"};
-  document.addEventListener("keydown", function (evt) {
-    var direction = evt.keyCode.toString();
-    if (!_.has(movementDirections, direction) || evt.repeat) {
-      return;
-    }
-    movingDirections.push(direction);
-    startMovementData = JSON.stringify({command: "start-movement", arguments: [movementDirections[direction]]});
-    ws.send(startMovementData);
-  });
-  document.addEventListener("keyup", function (evt) {
-    var direction = evt.keyCode.toString();
-    if (!_.includes(movingDirections, direction) || evt.repeat) {
-      return;
-    }
-    _.pull(movingDirections, direction);
-    stopMovementData = JSON.stringify({command: "stop-movement", arguments: []});
-    ws.send(stopMovementData);
-
-    if (movingDirections.length > 0) {
-      direction = _.last(movingDirections);
-      startMovementData = JSON.stringify({command: "start-movement", arguments: [movementDirections[direction]]});
-      ws.send(startMovementData);
-    }
-  });
   requestAnimationFrame(render);
 }());
