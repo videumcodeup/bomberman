@@ -26,15 +26,17 @@
 
 (def tile-root 12)
 
-(def tile-size (div 1 tile-root))
+(def resolution (* tile-root 1000000000))
 
-(def player-size 0.06)
+(def tile-size (quot resolution tile-root))
+
+(def player-size (quot tile-size 4/3))
 
 (def initial-board
   (vec (map (fn [m i]
               (let [d (Dimension. tile-size
-                                  (+ (div (mod i tile-root) tile-root) (div tile-size 2))
-                                  (+ (div (Math/floor (div i tile-root)) tile-root) (div tile-size 2)))]
+                                  (+ (* (mod i tile-root) tile-size) (quot tile-size 2))
+                                  (+ (* (quot i tile-root) tile-size) (quot tile-size 2)))]
                 (case m :g (Grass. m d) :s (Stone. m d) :w (Wood. m d))))
             [:s :s :s :s :s :s :s :s :s :s :s :s
              :s :g :s :s :w :s :w :w :s :w :w :s
@@ -49,6 +51,26 @@
              :s :w :w :w :g :w :w :s :g :g :g :s
              :s :s :s :s :s :s :s :s :s :s :s :s]
             (range))))
+
+;; (def initial-board
+;;   (vec (map (fn [m i]
+;;               (let [d (Dimension. tile-size
+;;                                   (+ (* (mod i tile-root) tile-size) (quot tile-size 2))
+;;                                   (+ (* (quot i tile-root) tile-size) (quot tile-size 2)))]
+;;                 (case m :g (Grass. m d) :s (Stone. m d) :w (Wood. m d))))
+;;             [:g :g :g :g :g :g :g :g :g :g :g :g
+;;              :g :g :g :g :g :g :g :g :g :g :g :g
+;;              :g :g :g :g :g :g :g :g :g :g :g :g
+;;              :g :g :g :g :g :g :g :g :g :g :g :g
+;;              :g :g :g :g :g :g :g :g :g :g :g :g
+;;              :g :g :g :g :g :g :g :g :g :g :g :g
+;;              :g :g :g :g :g :g :g :g :g :g :g :g
+;;              :g :g :g :g :g :g :g :g :g :g :g :g
+;;              :g :g :g :g :g :g :g :g :g :g :g :g
+;;              :g :g :g :g :g :g :g :g :g :g :g :g
+;;              :g :g :g :g :g :g :g :g :g :g :g :g
+;;              :g :g :g :g :g :g :g :g :g :g :g :g]
+;;             (range))))
 
 (def game (atom {:board initial-board, :players []}))
 
@@ -65,12 +87,12 @@
 (def opposite-axis {:x :y, :y :x})
 
 (defn inside? [target {:keys [x y]}]
-  (let [half (div (:size target) 2)]
+  (let [half (quot (:size target) 2)]
     (and (> x (- (:x target) half)) (< x (+ (:x target) half))
          (> y (- (:y target) half)) (< y (+ (:y target) half)))))
 
 (defn square-dimensions [{:keys [x y], :as dimension}]
-  (let [half (div (:size dimension) 2)]
+  (let [half (quot (:size dimension) 2)]
     [(assoc dimension :x (- x half) :y (- y half)) (assoc dimension :x (+ x half) :y (- y half))
      (assoc dimension :x (- x half) :y (+ y half)) (assoc dimension :x (+ x half) :y (+ y half))]))
 
@@ -82,16 +104,16 @@
     (assoc
       dimension
       axis
-      ((adders direction) (axis dimension) (div (:size dimension) 2)))))
+      ((adders direction) (axis dimension) (quot (:size dimension) 2)))))
 
 (defn tile-from-dimension [board {:keys [x y]}]
-  (get board (+ (* (int (div y tile-size)) tile-root)
-                (int (div x tile-size)))))
+  (get board (+ (* (quot y tile-size) tile-root)
+                (quot x tile-size))))
 
 (defn line-from-positions [direction from to]
-  (loop [steps [(div (Math/floor (* from tile-root)) tile-root)]
-         to (div (Math/floor (* to tile-root)) tile-root)]
-    (let [step (div (Math/round (float (* ((adders direction) (last steps) tile-size) tile-root))) tile-root)]
+  (loop [steps [(* (quot from tile-size) tile-size)]
+         to (* (quot to tile-size) tile-size)]
+    (let [step ((adders direction) (last steps) tile-size)]
       (if ((checkers direction) step to)
         steps
         (recur (conj steps step) to)))))
@@ -99,22 +121,25 @@
 (defn tiles-from-line [direction board from to]
   (let [axis (axises direction)
         o-axis (opposite-axis axis)
-        half (div (:size from) 2)
+        half (quot (:size from) 2)
         dimension-sub (assoc from o-axis (- (o-axis from) half))
         dimension-add (assoc from o-axis (+ (o-axis from) half))]
-    (map (fn [pos]
-           (filter #(overlaps? (:dimension %) (assoc from axis pos))
+    (filter
+      not-empty
+      (map (fn [pos]
+           (filter #(if-let [dimension (:dimension %)] (overlaps? dimension (assoc from axis pos)))
                    [(tile-from-dimension board (assoc dimension-sub axis pos))
                     (tile-from-dimension board (assoc dimension-add axis pos))]))
-         (line-from-positions direction (axis from) (axis to)))))
+         (line-from-positions direction (axis from) (axis to))))))
 
 (defn center [direction dimension]
   (let [axis (axises direction)]
-    (assoc dimension axis ((adders (opposite-direction direction)) (axis dimension) (div (:size dimension) 2)))))
+    (assoc dimension axis ((adders (opposite-direction direction)) (axis dimension) (quot (:size dimension) 2)))))
 
 (defn distance [direction a b]
-  (let [axis (axises direction)]
-    (div (Math/abs (float (- (axis a) (axis b)))) 1)))
+  (let [axis (axises direction)
+        d (- (axis a) (axis b))]
+    (max d (- d))))
 
 (defn closest-dimension [direction target dimensions]
   (loop [ds (next dimensions)
@@ -154,8 +179,8 @@
     (assoc
       dimension
       axis
-      (let [p ((adders direction) (axis dimension) (* (div (- to from) 1e9) speed))]
-        (max (min (- 1 (div player-size 2)) p) (div player-size 2))))))
+      (let [p ((adders direction) (axis dimension) (* (- to from) speed))]
+        (max (min (- resolution (quot player-size 2)) p) (quot player-size 2))))))
 
 (defn reposition [board now {{direction :direction, from :dimension, speed :speed, then :time, :as movement} :movement, dimension :dimension, :as player}]
   (if movement
@@ -170,8 +195,15 @@
         (move direction speed from then now)))
     player))
 
-(defn game->json [game]
-  (json/write-str (assoc game :board (map :name (:board game)))))
+(defn game->json [{:keys [board players]}]
+  (json/write-str {:board (map :name board)
+                   :players (map (fn [{{:keys [direction speed], :as movement} :movement, {:keys [x y]} :dimension}]
+                                   {:movement (if movement
+                                                {:direction direction
+                                                 :speed (float (/ speed tile-root))})
+                                    :dimension {:x (float (/ x resolution))
+                                                :y (float (/ y resolution))}})
+                                 players)}))
 
 (defn push-game [_ _ _ g]
   (put! snapshots {:snapshot :snapshot
@@ -204,7 +236,7 @@
                                                       (if (= (:id p) id)
                                                         (assoc p :movement {:direction (keyword (first arguments))
                                                                             :dimension (:dimension p)
-                                                                            :speed 0.5
+                                                                            :speed (quot tile-root 2)
                                                                             :time (System/nanoTime)})
                                                         p))
                                                     (:players g)))))
@@ -222,7 +254,7 @@
           (when (and snap (open? channel))
             (send! channel (:data snap))
             (recur))))
-      (swap! game (fn [g] (assoc g :players (conj (:players g) {:id id, :movement nil, :dimension (Dimension. player-size (+ tile-size (div tile-size 2)) (+ tile-size (div tile-size 2)))}))))
+      (swap! game (fn [g] (assoc g :players (conj (:players g) {:id id, :movement nil, :dimension (Dimension. player-size (+ tile-size (quot tile-size 2)) (+ tile-size (quot tile-size 2)))}))))
       (send! channel (game->json @game)))))
 
 (defn -main []
