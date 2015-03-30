@@ -7,8 +7,8 @@
   - Enter nickname
   - Bomb/flame sprites
   - Custom programming
-    - Implement Ace-editor
-    - Implement basic bombs/movement
+    - [X] Implement Ace-editor
+    - [X] Implement basic bombs/movement
 
 - Server
   - Bombs
@@ -16,8 +16,8 @@
     - Explosions
     - Collision detection (blocks/players)
   - Energy
-    - Accept/decline actions  
-    - Calculate energy consumtion
+    - ~~Accept/decline actions~~  
+    - ~~Calculate energy consumtion~~
 
 - Testing and documentation
   - Manually test game   
