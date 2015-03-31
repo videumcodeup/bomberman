@@ -4,9 +4,9 @@
   padding: 0;
 }
 
-#game {
-    width: 50%;
-    margin: 0 auto;
+#board {
+  position: absolute;
+  z-index: 1;
 }
 
 #editor {
@@ -17,6 +17,7 @@
   right: 0;
   left: 0;
   bottom: 0;
+  z-index: 2;
 }
 
 #editor.active {

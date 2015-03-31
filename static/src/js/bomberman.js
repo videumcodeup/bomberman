@@ -132,6 +132,8 @@
   var canvas = document.getElementById("board");
   canvas.width = boardSize;
   canvas.height = boardSize;
+  canvas.style.left = "" + ((window.innerWidth / 2) - (canvas.width / 2)) + "px";
+  canvas.style.top = "" + ((window.innerHeight / 2) - (canvas.height / 2)) + "px";
   var ctx = canvas.getContext("2d");
   var renderTiles = function (tiles) {
     _.each(tiles, function (tile, i) {
