@@ -165,7 +165,7 @@
     });
   };
   var renderPlayers = function (players) {
-    _.each(players, function (player) {
+    _.each(players, function (player, playerId) {
       var sprite = determineSprite(player);
       var playerHeight = sprite.height * (playerSize / sprite.width);
       if (player.immortal) {
@@ -175,7 +175,7 @@
       ctx.globalAlpha = 1;
       var txt = player.name;
       ctx.textAlign = "center";
-      ctx.fillStyle = "#fff";
+      ctx.fillStyle = id === playerId ? "#cc9" : "#fff";
       ctx.fillText(txt, Math.floor(player.dimension.x * boardSize), Math.floor(player.dimension.y * boardSize - (playerHeight / 2)));
       ctx.textAlign = "start";
       ctx.fillStyle = "#000";
