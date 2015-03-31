@@ -62,13 +62,13 @@
                                   (+ (* (quot i tile-root) tile-size) (quot tile-size 2)))]
                 (case m :g (Grass. m d) :s (Stone. m d) :w (Wood. m d))))
             [:g :g :g :g :g :g :g :g :g :g :g :g
+             :g :g :g :g :g :s :g :g :g :g :g :g
              :g :g :g :g :g :g :g :g :g :g :g :g
+             :g :g :g :g :g :s :g :g :g :g :g :g
              :g :g :g :g :g :g :g :g :g :g :g :g
+             :g :g :g :g :g :w :g :g :g :g :g :g
              :g :g :g :g :g :g :g :g :g :g :g :g
-             :g :g :g :g :g :g :g :g :g :g :g :g
-             :g :g :g :g :g :g :g :g :g :g :g :g
-             :g :g :g :g :g :g :g :g :g :g :g :g
-             :g :g :g :g :g :g :g :g :g :g :g :g
+             :g :g :g :g :g :w :g :g :g :g :g :g
              :g :g :g :g :g :g :g :g :g :g :g :g
              :g :g :g :g :g :g :g :g :g :g :g :g
              :g :g :g :g :g :g :g :g :g :g :g :g
@@ -208,16 +208,24 @@
 (defn remove-old [now xs]
   (filter #(< now (:time %)) xs))
 
+(defn valid-explosion? [board {{:keys [size x y], :as dimension} :dimension}]
+  (and (>= x (quot size 2))
+       (<= x (- resolution (quot size 2)))
+       (>= y (quot size 2))
+       (<= y (- resolution (quot size 2)))
+       (not (instance? Stone (tile-from-dimension board dimension)))))
+
 (defn create-explosions [board now bomb]
   (if (> now (:time bomb))
     (let [explosion {:dimension (assoc (:dimension bomb) :size explosion-size)
                      :time (+ now 500000000)}
           {{:keys [x y]} :dimension} explosion]
-      [(update explosion :dimension assoc :x (- x tile-size))
-       (update explosion :dimension assoc :y (- y tile-size))
-       (update explosion :dimension assoc :x (+ x tile-size))
-       (update explosion :dimension assoc :y (+ y tile-size))
-       explosion])
+      (filter #(valid-explosion? board %)
+              [(update explosion :dimension assoc :x (- x tile-size))
+               (update explosion :dimension assoc :y (- y tile-size))
+               (update explosion :dimension assoc :x (+ x tile-size))
+               (update explosion :dimension assoc :y (+ y tile-size))
+               explosion]))
     []))
 
 (defn place-bomb [board bombs player]
