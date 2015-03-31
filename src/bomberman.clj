@@ -205,17 +205,14 @@
         (move direction speed from then now)))
     player))
 
-(defn remove-old-bomb [now bomb]
-  (if (> now (:time bomb))
-    nil
-    bomb))
+(defn remove-old [now xs]
+  (filter #(< now (:time %)) xs))
 
 (defn create-explosions [board now bomb]
   (if (> now (:time bomb))
-    [{:dimension (assoc (:dimension bomb) :size explosion-size)}]
+    [{:dimension (assoc (:dimension bomb) :size explosion-size)
+      :time (+ (System/nanoTime) 500000000)}]
     []))
-
-(defn remove-old-explosions [board now explosion])
 
 (defn game->json [{:keys [bloods board bombs explosions players]}]
   (json/write-str {:bloods (map (fn [{{:keys [x y]} :dimension, id :id}]
@@ -277,7 +274,7 @@
                                 {:dimension (assoc (:dimension (tile-from-dimension (:board g) (:dimension (find-player g id))))
                                                    :size
                                                    bomb-size)
-                                 :time (+ (System/nanoTime) 1000000000)}))))
+                                 :time (+ (System/nanoTime) 2000000000)}))))
               "start-movement"
               (swap! game (fn [g]
                             (assoc
@@ -316,8 +313,8 @@
       (let [old @game
             new (assoc old
                        :players (map #(reposition (:board old) now %) (:players old))
-                       :bombs (filter not-empty (map #(remove-old-bomb now %) (:bombs old)))
-                       :explosions (into (:explosions old) (mapcat #(create-explosions (:board old) now %) (:bombs old))))]
+                       :bombs (remove-old now (:bombs old))
+                       :explosions (into (remove-old now (:explosions old)) (mapcat #(create-explosions (:board old) now %) (:bombs old))))]
         (if (not= old new)
           (swap! game (constantly new))))
       (<! (timeout (/ 1000 60)))
