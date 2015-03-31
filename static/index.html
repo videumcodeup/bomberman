@@ -19,7 +19,7 @@
 var bomberman = {
     bombs: {
         regularBomb: function () {
-            alert("Explode!");
+            ws.send(JSON.stringify({command: "place-bomb", arguments: []}));
         }
     },
 

@@ -80,11 +80,37 @@
       "images/Bomberman/Left/f06.png",
       "images/Bomberman/Left/f07.png"],
   });
+  var bombSprites = loadSprites({
+    normal: "images/Bomb/f01.png"
+  });
+  var explosionSprites = loadSprites({
+    normal: [
+      "images/Flame/f00.png",
+      "images/Flame/f01.png",
+      "images/Flame/f02.png",
+      "images/Flame/f03.png",
+      "images/Flame/f04.png"
+    ]
+  });
+  var bloodSprites = loadSprites({
+    normal: [
+      "images/blood/blood-1.png",
+      "images/blood/blood-2.png",
+      "images/blood/blood-3.png",
+      "images/blood/blood-4.png",
+      "images/blood/blood-5.png",
+      "images/blood/blood-6.png"
+    ]
+  });
   var game = null;
   var boardSize = 640;
   var tileRoot = 12;
   var tileSize = boardSize / tileRoot;
-  var playerSize = boardSize * 0.06;
+  var playerSize = tileSize / (4 / 3);
+  var bombSize = tileSize / (4 / 3);
+  var explosionSize = tileSize / (4 / 3);
+  var bloodSize = tileSize / (4 / 3);
+  var renderedBloods = {};
   var canvas = document.getElementById("board");
   canvas.width = boardSize;
   canvas.height = boardSize;
@@ -92,6 +118,28 @@
   var renderBoard = function (board) {
     _.each(board, function (tile, i) {
       ctx.drawImage(blockSprites[tile], (i % tileRoot) * tileSize, Math.floor(i / tileRoot) * tileSize, tileSize, tileSize);
+    });
+  };
+  var renderBombs = function (bombs) {
+    _.each(bombs, function (bomb) {
+      ctx.drawImage(bombSprites.normal, Math.floor((bomb.dimension.x * boardSize) - (bombSize / 2)), Math.floor((bomb.dimension.y * boardSize) - (bombSize / 2)), bombSize, bombSize);
+    });
+  };
+  var renderExplosions = function (explosions) {
+    var sprite = explosionSprites.normal[Math.floor((new Date().getMilliseconds() % 500) / 100)];
+    _.each(explosions, function (explosion) {
+      ctx.drawImage(sprite, Math.floor((explosion.dimension.x * boardSize) - (explosionSize / 2)), Math.floor((explosion.dimension.y * boardSize) - (explosionSize / 2)), explosionSize, explosionSize);
+    });
+  };
+  var renderBloods = function (bloods) {
+    _.each(bloods, function (blood) {
+      if (!renderedBloods[blood.id]) {
+        renderedBloods[blood.id] = new Date().getTime();
+      }
+      var delta = new Date().getTime() - renderedBloods[blood.id];
+      if (delta < 600) {
+        ctx.drawImage(bloodSprites.normal[Math.floor(delta / 100)], Math.floor((blood.dimension.x * boardSize) - (bloodSize / 2)), Math.floor((blood.dimension.y * boardSize) - (bloodSize / 2)), bloodSize, bloodSize);
+      }
     });
   };
   var renderPlayers = function (players) {
@@ -105,6 +153,9 @@
     if (game) {
       ctx.clearRect(0, 0, boardSize, boardSize);
       renderBoard(game.board);
+      renderBombs(game.bombs);
+      renderExplosions(game.explosions);
+      renderBloods(game.bloods);
       renderPlayers(game.players);
     }
     requestAnimationFrame(render);

@@ -4,9 +4,6 @@
             [org.httpkit.server :refer :all])
   (:import [java.util UUID]))
 
-(defn div [x y]
-  (with-precision 5 (/ (bigdec x) (bigdec y))))
-
 (defprotocol Walkable)
 
 (defrecord Dimension [size x y])
@@ -32,25 +29,11 @@
 
 (def player-size (quot tile-size 4/3))
 
-(def initial-board
-  (vec (map (fn [m i]
-              (let [d (Dimension. tile-size
-                                  (+ (* (mod i tile-root) tile-size) (quot tile-size 2))
-                                  (+ (* (quot i tile-root) tile-size) (quot tile-size 2)))]
-                (case m :g (Grass. m d) :s (Stone. m d) :w (Wood. m d))))
-            [:s :s :s :s :s :s :s :s :s :s :s :s
-             :s :g :s :s :w :s :w :w :s :w :w :s
-             :s :g :g :g :g :w :s :w :s :s :w :s
-             :s :w :s :s :s :g :g :w :s :w :w :s
-             :s :w :g :s :w :w :g :s :s :g :g :s
-             :s :s :g :w :w :s :w :g :w :w :s :s
-             :s :w :g :s :g :g :w :g :s :g :g :s
-             :s :s :w :w :w :g :g :s :s :w :s :s
-             :s :s :g :s :w :s :g :w :s :w :g :s
-             :s :g :w :g :s :s :g :w :g :w :g :s
-             :s :w :w :w :g :w :w :s :g :g :g :s
-             :s :s :s :s :s :s :s :s :s :s :s :s]
-            (range))))
+(def bomb-size (quot tile-size 4/3))
+
+(def explosion-size (quot tile-size 4/3))
+
+(def blood-size (quot tile-size 4/3))
 
 ;; (def initial-board
 ;;   (vec (map (fn [m i]
@@ -58,21 +41,45 @@
 ;;                                   (+ (* (mod i tile-root) tile-size) (quot tile-size 2))
 ;;                                   (+ (* (quot i tile-root) tile-size) (quot tile-size 2)))]
 ;;                 (case m :g (Grass. m d) :s (Stone. m d) :w (Wood. m d))))
-;;             [:g :g :g :g :g :g :g :g :g :g :g :g
-;;              :g :g :g :g :g :g :g :g :g :g :g :g
-;;              :g :g :g :g :g :g :g :g :g :g :g :g
-;;              :g :g :g :g :g :g :g :g :g :g :g :g
-;;              :g :g :g :g :g :g :g :g :g :g :g :g
-;;              :g :g :g :g :g :g :g :g :g :g :g :g
-;;              :g :g :g :g :g :g :g :g :g :g :g :g
-;;              :g :g :g :g :g :g :g :g :g :g :g :g
-;;              :g :g :g :g :g :g :g :g :g :g :g :g
-;;              :g :g :g :g :g :g :g :g :g :g :g :g
-;;              :g :g :g :g :g :g :g :g :g :g :g :g
-;;              :g :g :g :g :g :g :g :g :g :g :g :g]
+;;             [:s :s :s :s :s :s :s :s :s :s :s :s
+;;              :s :g :s :s :w :s :w :w :s :w :w :s
+;;              :s :g :g :g :g :w :s :w :s :s :w :s
+;;              :s :w :s :s :s :g :g :w :s :w :w :s
+;;              :s :w :g :s :w :w :g :s :s :g :g :s
+;;              :s :s :g :w :w :s :w :g :w :w :s :s
+;;              :s :w :g :s :g :g :w :g :s :g :g :s
+;;              :s :s :w :w :w :g :g :s :s :w :s :s
+;;              :s :s :g :s :w :s :g :w :s :w :g :s
+;;              :s :g :w :g :s :s :g :w :g :w :g :s
+;;              :s :w :w :w :g :w :w :s :g :g :g :s
+;;              :s :s :s :s :s :s :s :s :s :s :s :s]
 ;;             (range))))
 
-(def game (atom {:board initial-board, :players []}))
+(def initial-board
+  (vec (map (fn [m i]
+              (let [d (Dimension. tile-size
+                                  (+ (* (mod i tile-root) tile-size) (quot tile-size 2))
+                                  (+ (* (quot i tile-root) tile-size) (quot tile-size 2)))]
+                (case m :g (Grass. m d) :s (Stone. m d) :w (Wood. m d))))
+            [:g :g :g :g :g :g :g :g :g :g :g :g
+             :g :g :g :g :g :g :g :g :g :g :g :g
+             :g :g :g :g :g :g :g :g :g :g :g :g
+             :g :g :g :g :g :g :g :g :g :g :g :g
+             :g :g :g :g :g :g :g :g :g :g :g :g
+             :g :g :g :g :g :g :g :g :g :g :g :g
+             :g :g :g :g :g :g :g :g :g :g :g :g
+             :g :g :g :g :g :g :g :g :g :g :g :g
+             :g :g :g :g :g :g :g :g :g :g :g :g
+             :g :g :g :g :g :g :g :g :g :g :g :g
+             :g :g :g :g :g :g :g :g :g :g :g :g
+             :g :g :g :g :g :g :g :g :g :g :g :g]
+            (range))))
+
+(def game (atom {:bloods []
+                 :board initial-board
+                 :bombs []
+                 :explosions []
+                 :players []}))
 
 (def axises {:left :x, :up :y, :right :x, :down :y})
 
@@ -85,6 +92,9 @@
 (def opposite-direction {:left :right, :up :down, :right :left, :down :up})
 
 (def opposite-axis {:x :y, :y :x})
+
+(defn create-uuid []
+  (str (UUID/randomUUID)))
 
 (defn inside? [target {:keys [x y]}]
   (let [half (quot (:size target) 2)]
@@ -195,10 +205,36 @@
         (move direction speed from then now)))
     player))
 
-(defn game->json [{:keys [board players]}]
-  (json/write-str {:board (map :name board)
-                   :players (map (fn [{{:keys [direction speed], :as movement} :movement, {:keys [x y]} :dimension}]
-                                   {:movement (if movement
+(defn remove-old-bomb [now bomb]
+  (if (> now (:time bomb))
+    nil
+    bomb))
+
+(defn create-explosions [board now bomb]
+  (if (> now (:time bomb))
+    [{:dimension (assoc (:dimension bomb) :size explosion-size)}]
+    []))
+
+(defn remove-old-explosions [board now explosion])
+
+(defn game->json [{:keys [bloods board bombs explosions players]}]
+  (json/write-str {:bloods (map (fn [{{:keys [x y]} :dimension, id :id}]
+                                  {:dimension {:x (float (/ x resolution))
+                                               :y (float (/ y resolution))}
+                                   :id id})
+                                bloods)
+                   :board (map :name board)
+                   :bombs (map (fn [{{:keys [x y]} :dimension}]
+                                 {:dimension {:x (float (/ x resolution))
+                                              :y (float (/ y resolution))}})
+                               bombs)
+                   :explosions (map (fn [{{:keys [x y]} :dimension}]
+                                      {:dimension {:x (float (/ x resolution))
+                                                   :y (float (/ y resolution))}})
+                                    explosions)
+                   :players (map (fn [{{:keys [direction speed], :as movement} :movement, {:keys [x y]} :dimension, :as player}]
+                                   {:id (:id player)
+                                    :movement (if movement
                                                 {:direction direction
                                                  :speed (float (/ speed tile-root))})
                                     :dimension {:x (float (/ x resolution))
@@ -209,10 +245,13 @@
   (put! snapshots {:snapshot :snapshot
                    :data (game->json g)}))
 
+(defn find-player [game id]
+  (first (filter #(= (:id %) id) (:players game))))
+
 (defn handler [request]
   (with-channel request channel
     (let [snaps (chan)
-          id (str (UUID/randomUUID))]
+          id (create-uuid)]
       (println "New connection:" id)
       (sub snapshots-pub :snapshot snaps)
       (on-close
@@ -228,27 +267,40 @@
                 command (rpc "command")
                 arguments (rpc "arguments")]
             (case command
-              "start-movement" (swap! game (fn [g]
-                                             (assoc
-                                               g
-                                               :players
-                                               (map (fn [p]
-                                                      (if (= (:id p) id)
-                                                        (assoc p :movement {:direction (keyword (first arguments))
-                                                                            :dimension (:dimension p)
-                                                                            :speed (quot tile-root 2)
-                                                                            :time (System/nanoTime)})
-                                                        p))
-                                                    (:players g)))))
-              "stop-movement" (swap! game (fn [g]
-                                            (assoc
-                                              g
-                                              :players
-                                              (map (fn [p]
-                                                     (if (= (:id p) id)
-                                                       (assoc p :movement nil)
-                                                       p))
-                                                   (:players g)))))))))
+              "place-bomb"
+              (swap! game (fn [g]
+                            (assoc
+                              g
+                              :bombs
+                              (conj
+                                (:bombs g)
+                                {:dimension (assoc (:dimension (tile-from-dimension (:board g) (:dimension (find-player g id))))
+                                                   :size
+                                                   bomb-size)
+                                 :time (+ (System/nanoTime) 1000000000)}))))
+              "start-movement"
+              (swap! game (fn [g]
+                            (assoc
+                              g
+                              :players
+                              (map (fn [p]
+                                     (if (= (:id p) id)
+                                       (assoc p :movement {:direction (keyword (first arguments))
+                                                           :dimension (:dimension p)
+                                                           :speed (quot tile-root 2)
+                                                           :time (System/nanoTime)})
+                                       p))
+                                   (:players g)))))
+              "stop-movement"
+              (swap! game (fn [g]
+                            (assoc
+                              g
+                              :players
+                              (map (fn [p]
+                                     (if (= (:id p) id)
+                                       (assoc p :movement nil)
+                                       p))
+                                   (:players g)))))))))
       (go-loop []
         (let [snap (<! snaps)]
           (when (and snap (open? channel))
@@ -262,7 +314,10 @@
   (go-loop []
     (let [now (System/nanoTime)]
       (let [old @game
-            new (assoc old :players (map #(reposition (:board old) now %) (:players old)))]
+            new (assoc old
+                       :players (map #(reposition (:board old) now %) (:players old))
+                       :bombs (filter not-empty (map #(remove-old-bomb now %) (:bombs old)))
+                       :explosions (into (:explosions old) (mapcat #(create-explosions (:board old) now %) (:bombs old))))]
         (if (not= old new)
           (swap! game (constantly new))))
       (<! (timeout (/ 1000 60)))
