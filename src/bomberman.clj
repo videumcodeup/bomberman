@@ -322,27 +322,30 @@
         (on-receive
           channel
           (fn [data]
-            (let [rpc (json/read-str data)
-                  command (rpc "command")
-                  arguments (rpc "arguments")
-                  now (System/nanoTime)]
-              (case command
-                "place-bomb"
-                (swap! game (fn [g]
-                              (if-let [bomb (place-bomb (:tiles g) (:bombs g) ((:players g) id))]
-                                (update g :bombs assoc (create-uuid) bomb)
-                                g)))
-                "start-movement"
-                (swap! game (fn [g]
-                              (let [p ((:players g) id)]
-                                (update g :players assoc id (assoc p :movement {:direction (keyword (first arguments))
-                                                                                :dimension (:dimension p)
-                                                                                :speed (quot tile-root 4)
-                                                                                :time now})))))
-                "stop-movement"
-                (swap! game (fn [g]
-                              (let [p ((:players g) id)]
-                                (update g :players assoc id (assoc p :movement nil)))))))))
+            (if-let [rpc (try (json/read-str data) (catch Exception e nil))]
+              (if (and (map? rpc) (string? (rpc "command")) (coll? (rpc "arguments")))
+                (let [command (rpc "command")
+                      arguments (rpc "arguments")
+                      now (System/nanoTime)]
+                  (case command
+                    "place-bomb"
+                    (swap! game (fn [g]
+                                  (if-let [bomb (place-bomb (:tiles g) (:bombs g) ((:players g) id))]
+                                    (update g :bombs assoc (create-uuid) bomb)
+                                    g)))
+                    "start-movement"
+                    (if-let [direction (keyword (first arguments))]
+                      (if (#{:left :up :right :down} direction)
+                        (swap! game (fn [g]
+                                      (let [p ((:players g) id)]
+                                        (update g :players assoc id (assoc p :movement {:direction direction
+                                                                                        :dimension (:dimension p)
+                                                                                        :speed (quot tile-root 4)
+                                                                                    :time now})))))))
+                    "stop-movement"
+                    (swap! game (fn [g]
+                                  (let [p ((:players g) id)]
+                                    (update g :players assoc id (assoc p :movement nil)))))))))))
         (go-loop []
           (let [snap (<! snaps)]
             (when (and snap (open? channel))
