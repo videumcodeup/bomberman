@@ -20,7 +20,8 @@
     }
   });
   var bind = Mousetrap.bind;
-  bind("ctrl+alt+e", function () {
+  bind("ctrl+e", function (e) {
+      e.preventDefault();
       editorEl.classList.add("active");
       editor.focus();
 
