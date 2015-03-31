@@ -1,4 +1,5 @@
 (ns bomberman
+  (:gen-class)
   (:require [clojure.core.async :refer [<! <!! >! >!! chan close! go go-loop pub put! sub timeout]]
             [clojure.data :refer [diff]]
             [clojure.data.json :as json]
