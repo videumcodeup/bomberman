@@ -193,9 +193,11 @@
     renderPlayers(game.players);
     requestAnimationFrame(render);
   };
-  var wsAddress = prompt("Enter API url", "ws://127.0.0.1:3000");
+  var wsAddress = prompt("Enter API url", localStorage.getItem("bomberman-ws-address") || "ws://127.0.0.1:3000");
   if (!wsAddress || wsAddress === "") {
     renderError("No WebSocket address provided");
+  } else {
+      localStorage.setItem("bomberman-ws-address", wsAddress);
   }
   var ws = new WebSocket(wsAddress);
   ws.onerror = function (e) {
