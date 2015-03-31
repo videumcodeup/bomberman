@@ -35,45 +35,45 @@
 
 (def blood-size (quot tile-size 4/3))
 
-;; (def initial-board
-;;   (vec (map (fn [m i]
-;;               (let [d (Dimension. tile-size
-;;                                   (+ (* (mod i tile-root) tile-size) (quot tile-size 2))
-;;                                   (+ (* (quot i tile-root) tile-size) (quot tile-size 2)))]
-;;                 (case m :g (Grass. m d) :s (Stone. m d) :w (Wood. m d))))
-;;             [:s :s :s :s :s :s :s :s :s :s :s :s
-;;              :s :g :s :s :w :s :w :w :s :w :w :s
-;;              :s :g :g :g :g :w :s :w :s :s :w :s
-;;              :s :w :s :s :s :g :g :w :s :w :w :s
-;;              :s :w :g :s :w :w :g :s :s :g :g :s
-;;              :s :s :g :w :w :s :w :g :w :w :s :s
-;;              :s :w :g :s :g :g :w :g :s :g :g :s
-;;              :s :s :w :w :w :g :g :s :s :w :s :s
-;;              :s :s :g :s :w :s :g :w :s :w :g :s
-;;              :s :g :w :g :s :s :g :w :g :w :g :s
-;;              :s :w :w :w :g :w :w :s :g :g :g :s
-;;              :s :s :s :s :s :s :s :s :s :s :s :s]
-;;             (range))))
-
 (def initial-board
   (vec (map (fn [m i]
               (let [d (Dimension. tile-size
                                   (+ (* (mod i tile-root) tile-size) (quot tile-size 2))
                                   (+ (* (quot i tile-root) tile-size) (quot tile-size 2)))]
                 (case m :g (Grass. m d) :s (Stone. m d) :w (Wood. m d))))
-            [:g :g :g :g :g :g :g :g :g :g :g :g
-             :g :g :g :g :g :s :g :g :g :g :g :g
-             :g :g :g :g :g :g :g :g :g :g :g :g
-             :g :g :g :g :g :s :g :g :g :g :g :g
-             :g :g :g :g :g :g :g :g :g :g :g :g
-             :g :g :g :g :g :w :g :g :g :g :g :g
-             :g :g :g :g :g :g :g :g :g :g :g :g
-             :g :g :g :g :g :w :g :g :g :g :g :g
-             :g :g :g :g :g :g :g :g :g :g :g :g
-             :g :g :g :g :g :g :g :g :g :g :g :g
-             :g :g :g :g :g :g :g :g :g :g :g :g
-             :g :g :g :g :g :g :g :g :g :g :g :g]
+            [:s :s :s :s :s :s :s :s :s :s :s :s
+             :s :g :s :s :w :s :w :w :s :w :w :s
+             :s :g :g :g :g :w :s :w :s :s :w :s
+             :s :w :s :s :s :g :g :w :s :w :w :s
+             :s :w :g :s :w :w :g :s :s :g :g :s
+             :s :s :g :w :w :s :w :g :w :w :s :s
+             :s :w :g :s :g :g :w :g :s :g :g :s
+             :s :s :w :w :w :g :g :s :s :w :s :s
+             :s :s :g :s :w :s :g :w :s :w :g :s
+             :s :g :w :g :s :s :g :w :g :w :g :s
+             :s :w :w :w :g :w :w :s :g :g :g :s
+             :s :s :s :s :s :s :s :s :s :s :s :s]
             (range))))
+
+;; (def initial-board
+;;   (vec (map (fn [m i]
+;;               (let [d (Dimension. tile-size
+;;                                   (+ (* (mod i tile-root) tile-size) (quot tile-size 2))
+;;                                   (+ (* (quot i tile-root) tile-size) (quot tile-size 2)))]
+;;                 (case m :g (Grass. m d) :s (Stone. m d) :w (Wood. m d))))
+;;             [:g :g :g :g :g :g :g :g :g :g :g :g
+;;              :g :g :g :g :g :s :g :g :g :g :g :g
+;;              :g :g :g :g :g :g :g :g :g :g :g :g
+;;              :g :g :g :g :g :s :g :g :g :g :g :g
+;;              :g :g :g :g :g :g :g :g :g :g :g :g
+;;              :g :g :g :g :g :w :g :g :g :g :g :g
+;;              :g :g :g :g :g :g :g :g :g :g :g :g
+;;              :g :g :g :g :g :w :g :g :g :g :g :g
+;;              :g :g :g :g :g :g :g :g :g :g :g :g
+;;              :g :g :g :g :g :g :g :g :g :g :g :g
+;;              :g :g :g :g :g :g :g :g :g :g :g :g
+;;              :g :g :g :g :g :g :g :g :g :g :g :g]
+;;             (range))))
 
 (def game (atom {:bloods []
                  :board initial-board
@@ -116,9 +116,12 @@
       axis
       ((adders direction) (axis dimension) (quot (:size dimension) 2)))))
 
-(defn tile-from-dimension [board {:keys [x y]}]
-  (get board (+ (* (quot y tile-size) tile-root)
-                (quot x tile-size))))
+(defn tile-index-from-dimension [board {:keys [x y]}]
+  (+ (* (quot y tile-size) tile-root)
+     (quot x tile-size)))
+
+(defn tile-from-dimension [board dimension]
+  (get board (tile-index-from-dimension board dimension)))
 
 (defn line-from-positions [direction from to]
   (loop [steps [(* (quot from tile-size) tile-size)]
@@ -228,6 +231,15 @@
                explosion]))
     []))
 
+(defn explode-wood [board explosions]
+  (loop [b board
+         es explosions]
+    (if-let [{:keys [dimension]} (first es)]
+      (let [index (tile-index-from-dimension b dimension)
+            tile (tile-from-dimension b dimension)]
+        (recur (assoc b index (if (instance? Wood tile) (Grass. :g (:dimension tile)) tile)) (next es)))
+      b)))
+
 (defn place-bomb [board bombs player]
   (let [dimension (assoc
                     (:dimension (tile-from-dimension board (:dimension player)))
@@ -330,6 +342,7 @@
       (let [old @game
             explosions (into (remove-old now (:explosions old)) (mapcat #(create-explosions (:board old) now %) (:bombs old)))
             new (assoc old
+                       :board (explode-wood (:board old) explosions)
                        :players (map #(reposition (:board old) now %) (:players old))
                        :bombs (remove-old now (:bombs old))
                        :explosions explosions)]
