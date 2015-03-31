@@ -4,11 +4,16 @@
   editor.getSession().setTabSize(2);
   editor.getSession().setUseSoftTabs(true);
   editor.getSession().setMode("ace/mode/javascript");
+  if (localStorage.getItem("bomberman-code") !== null) {
+    editor.getSession().setValue(localStorage.getItem("bomberman-code"));
+  }
   editor.commands.addCommand({
     name: 'save',
     bindKey: 'Ctrl-s',
     exec: function(editor) {
-      eval(editor.getValue());
+      var code = editor.getValue();
+      localStorage.setItem("bomberman-code", code);
+      eval(code);
     }
   });
   var bind = Mousetrap.bind;
