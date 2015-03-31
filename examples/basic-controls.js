@@ -10,43 +10,43 @@ var bomberman = {
 
         moveUp: function (e) {
             if (e.repeat) return;
-            bomberman.movement._rememberMovement(e.keyCode, "up");
-            bomberman.movement._sendMovement("start-movement", "up");
+            this._rememberMovement(e.keyCode, "up");
+            this._sendMovement("start-movement", "up");
         },
 
         moveDown: function (e, b) {
             if (e.repeat) return;
-            bomberman.movement._rememberMovement(e.keyCode, "down");
-            bomberman.movement._sendMovement("start-movement", "down");
+            this._rememberMovement(e.keyCode, "down");
+            this._sendMovement("start-movement", "down");
         },
 
         moveLeft: function (e) {
             if (e.repeat) return;
-            bomberman.movement._rememberMovement(e.keyCode, "left");
-            bomberman.movement._sendMovement("start-movement", "left");
+            this._rememberMovement(e.keyCode, "left");
+            this._sendMovement("start-movement", "left");
         },
 
         moveRight: function (e) {
             if (e.repeat) return;
-            bomberman.movement._rememberMovement(e.keyCode, "right");
-            bomberman.movement._sendMovement("start-movement", "right");
+            this._rememberMovement(e.keyCode, "right");
+            this._sendMovement("start-movement", "right");
         },
 
         stopMovement: function (e) {
-            if (!_.has(bomberman.movement.moves, e.keyCode.toString())) return;
-            bomberman.movement._sendMovement("stop-movement");
-            bomberman.movement._forgetMovement(e.keyCode);
+            if (!_.has(this.moves, e.keyCode.toString())) return;
+            this._sendMovement("stop-movement");
+            this._forgetMovement(e.keyCode);
         },
 
         _rememberMovement: function (keyCode, movement) {
-            bomberman.movement.moves[keyCode.toString()] = movement;
+            this.moves[keyCode.toString()] = movement;
         },
 
         _forgetMovement: function (keyCode) {
-            delete bomberman.movement.moves[keyCode.toString()];
-            if (_.keys(bomberman.movement.moves).length > 0) {
-                var direction = _.last(_.values(bomberman.movement.moves));
-                bomberman.movement._sendMovement("start-movement", direction);
+            delete this.moves[keyCode.toString()];
+            if (_.keys(this.moves).length > 0) {
+                var direction = _.last(_.values(this.moves));
+                this._sendMovement("start-movement", direction);
             }
         },
 
@@ -58,6 +58,9 @@ var bomberman = {
         },
     }
 };
+
+_.bindAll(bomberman.bombs);
+_.bindAll(bomberman.movement);
 
 bind("x", bomberman.bombs.regularBomb, "keydown");
 bind("w", bomberman.movement.moveUp, "keydown");
