@@ -169,7 +169,8 @@
     }
     requestAnimationFrame(render);
   };
-  var ws = new WebSocket("ws://127.0.0.1:3000");
+  var wsAddress = prompt("Enter API url", "ws://127.0.0.1:3000");
+  var ws = new WebSocket(wsAddress);
   ws.onmessage = function (message) {
     game = JSON.parse(message.data);
   };
