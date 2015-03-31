@@ -40,7 +40,7 @@
 
 (def player-names ["alpha" "beta" "gamma" "delta" "epsilon" "zeta" "eta" "theta" "iota" "kappa"])
 
-(def max-players (Integer/parseInt (or (System/getenv "max_players") 10)))
+(def max-players (Integer/parseInt (or (System/getenv "max_players") "10")))
 
 (def initial-board
   (vec (map (fn [m i]
