@@ -355,6 +355,7 @@
                                                       :immortal-time (+ (System/nanoTime) immortal-time)
                                                       :name (let [pns (set (map (fn [[_ p]] (:name p)) (:players g)))]
                                                               (first (filter #(not (pns %)) player-names)))})))
+        (send! channel (json/write-str {:id id}))
         (send! channel (game->json initial-game @game))))))
 
 (defn map-difference [a b]

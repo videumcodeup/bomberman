@@ -1,6 +1,7 @@
 (function () {
   var editorEl = document.getElementById("editor");
   var editor = ace.edit(editorEl);
+  var id = null;
   editor.setTheme("ace/theme/monokai");
   editor.getSession().setTabSize(2);
   editor.getSession().setUseSoftTabs(true);
@@ -201,13 +202,18 @@
     renderError("WebSocket error. Check console.");
   };
   ws.onmessage = function (message) {
-    _.each(JSON.parse(message.data), function (tx) {
-      if (tx.type === "add") {
-        game[tx.coll][tx.id] = tx.value;
-      } else if (tx.type === "retract") {
-        delete game[tx.coll][tx.id];
-      }
-    });
-  };
+    var data = JSON.parse(message.data);
+    if (data.id) {
+      id = data.id;
+    } else {
+      _.each(data, function (tx) {
+        if (tx.type === "add") {
+          game[tx.coll][tx.id] = tx.value;
+        } else if (tx.type === "retract") {
+          delete game[tx.coll][tx.id];
+        }
+      });
+    }
+  }
   requestAnimationFrame(render);
 }());
