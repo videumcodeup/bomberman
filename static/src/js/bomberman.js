@@ -200,6 +200,9 @@
   } else {
       localStorage.setItem("bomberman-ws-address", wsAddress);
   }
+  if (location.search === "?watch") {
+    wsAddress = wsAddress + "/watch";
+  }
   var ws = new WebSocket(wsAddress);
   ws.onerror = function (e) {
     renderError("WebSocket error. Check console.");
