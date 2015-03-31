@@ -36,6 +36,8 @@
 
 (def blood-size (quot tile-size 4/3))
 
+(def immortal-time 3000000000)
+
 (def initial-board
   (vec (map (fn [m i]
               (let [d (Dimension. tile-size
@@ -76,7 +78,7 @@
 ;;              :g :g :g :g :g :g :g :g :g :g :g :g]
 ;;             (range))))
 
-(def game (atom {:bloods []
+(def game (atom {:bloods #{}
                  :board initial-board
                  :bombs #{}
                  :explosions #{}
@@ -97,6 +99,14 @@
 (defn create-uuid []
   (str (UUID/randomUUID)))
 
+(defn radius [{size :size}]
+  (quot size 2))
+
+(defn distance [direction a b]
+  (let [axis (axises direction)
+        d (- (axis a) (axis b))]
+    (max d (- d))))
+
 (defn inside? [target {:keys [x y]}]
   (let [half (quot (:size target) 2)]
     (and (> x (- (:x target) half)) (< x (+ (:x target) half))
@@ -107,9 +117,14 @@
     [(assoc dimension :x (- x half) :y (- y half)) (assoc dimension :x (+ x half) :y (- y half))
      (assoc dimension :x (- x half) :y (+ y half)) (assoc dimension :x (+ x half) :y (+ y half))]))
 
+;; (defn overlaps? [target dimension]
+;;   (boolean (or (and (= (:x target) (:x dimension)) (= (:y target) (:y dimension)))
+;;                (some #(inside? target %) (square-dimensions dimension)))))
+
 (defn overlaps? [target dimension]
-  (boolean (or (and (= (:x target) (:x dimension)) (= (:y target) (:y dimension)))
-               (some #(inside? target %) (square-dimensions dimension)))))
+  (let [min (+ (radius target) (radius dimension))]
+    (and (< (distance :left target dimension) min)
+         (< (distance :up target dimension) min))))
 
 (defn edge-dimension [direction dimension]
   (let [axis (axises direction)]
@@ -150,11 +165,6 @@
 (defn center [direction dimension]
   (let [axis (axises direction)]
     (assoc dimension axis ((adders (opposite-direction direction)) (axis dimension) (quot (:size dimension) 2)))))
-
-(defn distance [direction a b]
-  (let [axis (axises direction)
-        d (- (axis a) (axis b))]
-    (max d (- d))))
 
 (defn closest-dimension [direction target dimensions]
   (loop [ds (next dimensions)
@@ -197,7 +207,7 @@
       (let [p ((adders direction) (axis dimension) (* (- to from) speed))]
         (max (min (- resolution (quot player-size 2)) p) (quot player-size 2))))))
 
-(defn reposition [board now {{direction :direction, from :dimension, speed :speed, then :time, :as movement} :movement, dimension :dimension, :as player}]
+(defn reposition [{{direction :direction, from :dimension, speed :speed, then :time, :as movement} :movement, dimension :dimension, :as player} board now]
   (if movement
     (assoc
       player
@@ -233,11 +243,11 @@
                        :time (+ now 500000000)}
             {{:keys [x y]} :dimension} explosion]
         (filter #(valid-explosion? board %)
-                [(update explosion :dimension assoc :x (- x tile-size) :id (create-uuid))
-                 (update explosion :dimension assoc :y (- y tile-size) :id (create-uuid))
-                 (update explosion :dimension assoc :x (+ x tile-size) :id (create-uuid))
-                 (update explosion :dimension assoc :y (+ y tile-size) :id (create-uuid))
-                 explosion])))
+                [(assoc (update explosion :dimension assoc :x (- x tile-size)) :id (create-uuid))
+                 (assoc (update explosion :dimension assoc :y (- y tile-size)) :id (create-uuid))
+                 (assoc (update explosion :dimension assoc :x (+ x tile-size)) :id (create-uuid))
+                 (assoc (update explosion :dimension assoc :y (+ y tile-size)) :id (create-uuid))
+                 (assoc explosion :id (create-uuid))])))
     bombs))
 
 (defn explode-wood [board explosions]
@@ -264,6 +274,20 @@
          :size
          player-size))
 
+(defn recalculate-players [players board bombs explosions now]
+  (loop [bloods #{}
+         old players
+         new []]
+    (if-let [player (first old)]
+      (let [immortal (> (:immortal-time player) now)
+            p (assoc (reposition player board now) :immortal immortal)]
+        (if (and (not immortal) (first (filter #(overlaps? (:dimension %) (:dimension p)) explosions)))
+          (recur (conj bloods {:id (create-uuid), :dimension (assoc (:dimension p) :size blood-size), :time now})
+                 (next old)
+                 (conj new (assoc p :dimension (place-player board) :immortal true :immortal-time (+ now immortal-time) :movement nil)))
+          (recur bloods (next old) (conj new p))))
+      [new bloods])))
+
 (defn game->json [{:keys [bloods board bombs explosions players]}]
   (json/write-str {:bloods (map (fn [{{:keys [x y]} :dimension, id :id}]
                                   {:dimension {:x (float (/ x resolution))
@@ -285,7 +309,8 @@
                                                 {:direction direction
                                                  :speed (float (/ speed tile-root))})
                                     :dimension {:x (float (/ x resolution))
-                                                :y (float (/ y resolution))}})
+                                                :y (float (/ y resolution))}
+                                    :immortal (:immortal player)})
                                  players)}))
 
 (defn push-game [_ _ _ g]
@@ -312,7 +337,8 @@
         (fn [data]
           (let [rpc (json/read-str data)
                 command (rpc "command")
-                arguments (rpc "arguments")]
+                arguments (rpc "arguments")
+                now (System/nanoTime)]
             (case command
               "place-bomb"
               (swap! game (fn [g]
@@ -329,7 +355,7 @@
                                        (assoc p :movement {:direction (keyword (first arguments))
                                                            :dimension (:dimension p)
                                                            :speed (quot tile-root 2)
-                                                           :time (System/nanoTime)})
+                                                           :time now})
                                        p))
                                    (:players g)))))
               "stop-movement"
@@ -347,7 +373,11 @@
           (when (and snap (open? channel))
             (send! channel (:data snap))
             (recur))))
-      (swap! game (fn [g] (assoc g :players (conj (:players g) {:id id, :movement nil, :dimension (place-player (:board g))}))))
+      (swap! game (fn [g] (update g :players conj {:id id
+                                                   :movement nil
+                                                   :dimension (place-player (:board g))
+                                                   :immortal true
+                                                   :immortal-time (+ (System/nanoTime) immortal-time)})))
       (send! channel (game->json @game)))))
 
 (defn -main []
@@ -355,7 +385,6 @@
   (go-loop []
     (let [now (System/nanoTime)]
       (let [{:keys [board], :as old} @game
-            ;; explosions (into (remove-old now (:explosions old)) (mapcat #(create-explosions (:board old) now %) (:bombs old)))
             [explosions
              ex-bombs] (loop [explosions (set (remove-old now (:explosions old)))
                               bombs (set (explodable-bombs now (:bombs old) explosions))
@@ -365,10 +394,14 @@
                            (let [es (create-explosions board now bs)
                                  b (explodable-bombs now (difference (:bombs old) bombs) es)]
                              (recur (into explosions es) (into bombs b) b))))
+            bombs (difference (:bombs old) ex-bombs)
+            board (explode-wood (:board old) explosions)
+            [players bloods] (recalculate-players (:players old) board bombs explosions now)
             new (assoc old
-                       :board (explode-wood (:board old) explosions)
-                       :players (map #(reposition (:board old) now %) (:players old))
-                       :bombs (difference (:bombs old) ex-bombs)
+                       :bloods (into (:bloods old) bloods)
+                       :board board
+                       :players players
+                       :bombs bombs
                        :explosions explosions)]
         (if (not= old new)
           (swap! game (constantly new))))

@@ -151,7 +151,11 @@
     _.each(players, function (player) {
       var sprite = determineSprite(player);
       var playerHeight = sprite.height * (playerSize / sprite.width);
+      if (player.immortal) {
+         ctx.globalAlpha = 0.5;
+      }
       ctx.drawImage(sprite, Math.floor(player.dimension.x * boardSize) - (playerSize / 2), Math.floor(player.dimension.y * boardSize) - (playerSize / 2) - (playerHeight / 2), playerSize, playerHeight);
+      ctx.globalAlpha = 1;
     });
   };
   var render = function () {
