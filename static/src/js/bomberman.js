@@ -114,7 +114,13 @@
       "images/blood/blood-6.png"
     ]
   });
-  var game = null;
+  var game = {
+    bloods: {},
+    bombs: {},
+    explosions: {},
+    players: {},
+    tiles: {}
+  };
   var boardSize = (window.innerWidth / 2);
   var tileRoot = 12;
   var tileSize = boardSize / tileRoot;
@@ -127,8 +133,8 @@
   canvas.width = boardSize;
   canvas.height = boardSize;
   var ctx = canvas.getContext("2d");
-  var renderBoard = function (board) {
-    _.each(board, function (tile, i) {
+  var renderTiles = function (tiles) {
+    _.each(tiles, function (tile, i) {
       ctx.drawImage(blockSprites[tile], (i % tileRoot) * tileSize, Math.floor(i / tileRoot) * tileSize, tileSize, tileSize);
     });
   };
@@ -176,14 +182,12 @@
     ctx.fillText(message, (boardSize / 2) - 150, boardSize / 2, 300);
   };
   var render = function () {
-    if (game) {
-      ctx.clearRect(0, 0, boardSize, boardSize);
-      renderBoard(game.board);
-      renderBombs(game.bombs);
-      renderExplosions(game.explosions);
-      renderBloods(game.bloods);
-      renderPlayers(game.players);
-    }
+    ctx.clearRect(0, 0, boardSize, boardSize);
+    renderTiles(game.tiles);
+    renderBombs(game.bombs);
+    renderExplosions(game.explosions);
+    renderBloods(game.bloods);
+    renderPlayers(game.players);
     requestAnimationFrame(render);
   };
   var wsAddress = prompt("Enter API url", "ws://127.0.0.1:3000");
@@ -195,7 +199,13 @@
     renderError("WebSocket error. Check console.");
   };
   ws.onmessage = function (message) {
-    game = JSON.parse(message.data);
+    _.each(JSON.parse(message.data), function (tx) {
+      if (tx.type === "add") {
+        game[tx.coll][tx.id] = tx.value;
+      } else if (tx.type === "retract") {
+        delete game[tx.coll][tx.id];
+      }
+    });
   };
   requestAnimationFrame(render);
 }());
