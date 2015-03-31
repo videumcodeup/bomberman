@@ -1,6 +1,7 @@
 (ns bomberman
   (:require [clojure.core.async :refer [<! <!! >! >!! chan close! go go-loop pub put! sub timeout]]
             [clojure.data.json :as json]
+            [clojure.set :refer [difference]]
             [org.httpkit.server :refer :all])
   (:import [java.util UUID]))
 
@@ -77,8 +78,8 @@
 
 (def game (atom {:bloods []
                  :board initial-board
-                 :bombs []
-                 :explosions []
+                 :bombs #{}
+                 :explosions #{}
                  :players []}))
 
 (def axises {:left :x, :up :y, :right :x, :down :y})
@@ -107,7 +108,8 @@
      (assoc dimension :x (- x half) :y (+ y half)) (assoc dimension :x (+ x half) :y (+ y half))]))
 
 (defn overlaps? [target dimension]
-  (some #(inside? target %) (square-dimensions dimension)))
+  (boolean (or (and (= (:x target) (:x dimension)) (= (:y target) (:y dimension)))
+               (some #(inside? target %) (square-dimensions dimension)))))
 
 (defn edge-dimension [direction dimension]
   (let [axis (axises direction)]
@@ -211,6 +213,12 @@
 (defn remove-old [now xs]
   (filter #(< now (:time %)) xs))
 
+(defn explodable-bombs [now bombs explosions]
+  (filter (fn [{:keys [time dimension]}]
+            (or (<= time now)
+                (first (filter #(overlaps? (:dimension %) dimension) explosions))))
+          bombs))
+
 (defn valid-explosion? [board {{:keys [size x y], :as dimension} :dimension}]
   (and (>= x (quot size 2))
        (<= x (- resolution (quot size 2)))
@@ -218,18 +226,19 @@
        (<= y (- resolution (quot size 2)))
        (not (instance? Stone (tile-from-dimension board dimension)))))
 
-(defn create-explosions [board now bomb]
-  (if (> now (:time bomb))
-    (let [explosion {:dimension (assoc (:dimension bomb) :size explosion-size)
-                     :time (+ now 500000000)}
-          {{:keys [x y]} :dimension} explosion]
-      (filter #(valid-explosion? board %)
-              [(update explosion :dimension assoc :x (- x tile-size))
-               (update explosion :dimension assoc :y (- y tile-size))
-               (update explosion :dimension assoc :x (+ x tile-size))
-               (update explosion :dimension assoc :y (+ y tile-size))
-               explosion]))
-    []))
+(defn create-explosions [board now bombs]
+  (mapcat
+    (fn [bomb]
+      (let [explosion {:dimension (assoc (:dimension bomb) :size explosion-size)
+                       :time (+ now 500000000)}
+            {{:keys [x y]} :dimension} explosion]
+        (filter #(valid-explosion? board %)
+                [(update explosion :dimension assoc :x (- x tile-size) :id (create-uuid))
+                 (update explosion :dimension assoc :y (- y tile-size) :id (create-uuid))
+                 (update explosion :dimension assoc :x (+ x tile-size) :id (create-uuid))
+                 (update explosion :dimension assoc :y (+ y tile-size) :id (create-uuid))
+                 explosion])))
+    bombs))
 
 (defn explode-wood [board explosions]
   (loop [b board
@@ -246,8 +255,14 @@
                     :size
                     bomb-size)]
     (if (not-any? #(= (:dimension %) dimension) bombs)
-      {:dimension dimension
+      {:id (create-uuid)
+       :dimension dimension
        :time (+ (System/nanoTime) 2000000000)})))
+
+(defn place-player [board]
+  (assoc (:dimension (first (shuffle (filter #(instance? Grass %) board))))
+         :size
+         player-size))
 
 (defn game->json [{:keys [bloods board bombs explosions players]}]
   (json/write-str {:bloods (map (fn [{{:keys [x y]} :dimension, id :id}]
@@ -332,19 +347,28 @@
           (when (and snap (open? channel))
             (send! channel (:data snap))
             (recur))))
-      (swap! game (fn [g] (assoc g :players (conj (:players g) {:id id, :movement nil, :dimension (Dimension. player-size (+ tile-size (quot tile-size 2)) (+ tile-size (quot tile-size 2)))}))))
+      (swap! game (fn [g] (assoc g :players (conj (:players g) {:id id, :movement nil, :dimension (place-player (:board g))}))))
       (send! channel (game->json @game)))))
 
 (defn -main []
   (println "Starting server")
   (go-loop []
     (let [now (System/nanoTime)]
-      (let [old @game
-            explosions (into (remove-old now (:explosions old)) (mapcat #(create-explosions (:board old) now %) (:bombs old)))
+      (let [{:keys [board], :as old} @game
+            ;; explosions (into (remove-old now (:explosions old)) (mapcat #(create-explosions (:board old) now %) (:bombs old)))
+            [explosions
+             ex-bombs] (loop [explosions (set (remove-old now (:explosions old)))
+                              bombs (set (explodable-bombs now (:bombs old) explosions))
+                              bs bombs]
+                         (if (empty? bs)
+                           [explosions bombs]
+                           (let [es (create-explosions board now bs)
+                                 b (explodable-bombs now (difference (:bombs old) bombs) es)]
+                             (recur (into explosions es) (into bombs b) b))))
             new (assoc old
                        :board (explode-wood (:board old) explosions)
                        :players (map #(reposition (:board old) now %) (:players old))
-                       :bombs (remove-old now (:bombs old))
+                       :bombs (difference (:bombs old) ex-bombs)
                        :explosions explosions)]
         (if (not= old new)
           (swap! game (constantly new))))
