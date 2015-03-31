@@ -16,7 +16,7 @@ Request to start moving the Bomberman in the given direction.
 **directions:** `"up", "down", "left", "right"`
 
 ```json
-    {"command": "start-movement", "arguments": ["up"]}
+{"command": "start-movement", "arguments": ["up"]}
 ```
 
 ## stop-movement
