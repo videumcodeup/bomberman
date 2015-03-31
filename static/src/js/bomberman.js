@@ -124,7 +124,7 @@
     tiles: {}
   };
   var boardSize = (window.innerWidth / 2);
-  var tileRoot = 12;
+  var tileRoot = 16;
   var tileSize = boardSize / tileRoot;
   var playerSize = tileSize / (4 / 3);
   var bombSize = tileSize / (4 / 3);
@@ -173,7 +173,7 @@
       }
       ctx.drawImage(sprite, Math.floor(player.dimension.x * boardSize) - (playerSize / 2), Math.floor(player.dimension.y * boardSize) - (playerSize / 2) - (playerHeight / 2), playerSize, playerHeight);
       ctx.globalAlpha = 1;
-      var txt = player.name;
+      var txt = player.name + " (" + player.kills + ")";
       ctx.textAlign = "center";
       ctx.fillStyle = id === playerId ? "#cc9" : "#fff";
       ctx.fillText(txt, Math.floor(player.dimension.x * boardSize), Math.floor(player.dimension.y * boardSize - (playerHeight / 2)));
@@ -200,7 +200,7 @@
   } else {
       localStorage.setItem("bomberman-ws-address", wsAddress);
   }
-  if (location.search === "?watch") {
+  if (location.search = "?watch") {
     wsAddress = wsAddress + "/watch";
   }
   var ws = new WebSocket(wsAddress);
