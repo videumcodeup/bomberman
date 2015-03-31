@@ -11,7 +11,7 @@
   }
   editor.commands.addCommand({
     name: 'save',
-    bindKey: 'Ctrl-s',
+    bindKey: 'Ctrl-Alt-s',
     exec: function(editor) {
       var code = editor.getValue();
       localStorage.setItem("bomberman-code", code);
@@ -20,7 +20,7 @@
     }
   });
   var bind = Mousetrap.bind;
-  bind("ctrl+e", function () {
+  bind("ctrl+alt+e", function () {
       editorEl.classList.add("active");
       editor.focus();
 
