@@ -214,6 +214,15 @@
       :time (+ (System/nanoTime) 500000000)}]
     []))
 
+(defn place-bomb [board bombs player]
+  (let [dimension (assoc
+                    (:dimension (tile-from-dimension board (:dimension player)))
+                    :size
+                    bomb-size)]
+    (if (not-any? #(= (:dimension %) dimension) bombs)
+      {:dimension dimension
+       :time (+ (System/nanoTime) 2000000000)})))
+
 (defn game->json [{:keys [bloods board bombs explosions players]}]
   (json/write-str {:bloods (map (fn [{{:keys [x y]} :dimension, id :id}]
                                   {:dimension {:x (float (/ x resolution))
@@ -266,15 +275,9 @@
             (case command
               "place-bomb"
               (swap! game (fn [g]
-                            (assoc
-                              g
-                              :bombs
-                              (conj
-                                (:bombs g)
-                                {:dimension (assoc (:dimension (tile-from-dimension (:board g) (:dimension (find-player g id))))
-                                                   :size
-                                                   bomb-size)
-                                 :time (+ (System/nanoTime) 2000000000)}))))
+                            (if-let [bomb (place-bomb (:board g) (:bombs g) (find-player g id))]
+                              (update-in g [:bombs] conj bomb)
+                              g)))
               "start-movement"
               (swap! game (fn [g]
                             (assoc
@@ -311,10 +314,11 @@
   (go-loop []
     (let [now (System/nanoTime)]
       (let [old @game
+            explosions (into (remove-old now (:explosions old)) (mapcat #(create-explosions (:board old) now %) (:bombs old)))
             new (assoc old
                        :players (map #(reposition (:board old) now %) (:players old))
                        :bombs (remove-old now (:bombs old))
-                       :explosions (into (remove-old now (:explosions old)) (mapcat #(create-explosions (:board old) now %) (:bombs old))))]
+                       :explosions explosions)]
         (if (not= old new)
           (swap! game (constantly new))))
       (<! (timeout (/ 1000 60)))
