@@ -156,6 +156,12 @@
       }
       ctx.drawImage(sprite, Math.floor(player.dimension.x * boardSize) - (playerSize / 2), Math.floor(player.dimension.y * boardSize) - (playerSize / 2) - (playerHeight / 2), playerSize, playerHeight);
       ctx.globalAlpha = 1;
+      var txt = player.name;
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#fff";
+      ctx.fillText(txt, Math.floor(player.dimension.x * boardSize), Math.floor(player.dimension.y * boardSize - (playerHeight / 2)));
+      ctx.textAlign = "start";
+      ctx.fillStyle = "#000";
     });
   };
   var renderError = function (message) {
