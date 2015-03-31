@@ -158,6 +158,10 @@
       ctx.globalAlpha = 1;
     });
   };
+  var renderError = function (message) {
+    ctx.font="30px Helvetica";
+    ctx.fillText(message, (boardSize / 2) - 150, boardSize / 2, 300);
+  };
   var render = function () {
     if (game) {
       ctx.clearRect(0, 0, boardSize, boardSize);
@@ -170,7 +174,13 @@
     requestAnimationFrame(render);
   };
   var wsAddress = prompt("Enter API url", "ws://127.0.0.1:3000");
+  if (!wsAddress || wsAddress === "") {
+    renderError("No WebSocket address provided");
+  }
   var ws = new WebSocket(wsAddress);
+  ws.onerror = function (e) {
+    renderError("WebSocket error. Check console.");
+  };
   ws.onmessage = function (message) {
     game = JSON.parse(message.data);
   };
