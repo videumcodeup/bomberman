@@ -5,16 +5,20 @@
 }
 
 #game {
-  position: absolute;
-  top: 0;
-  right: 0;
+    width: 50%;
+    margin: 0 auto;
 }
 
 #editor {
-  width: 750px;
+  width: 100%;
+  display: none;
   position: absolute;
   top: 0;
   right: 0;
   left: 0;
   bottom: 0;
+}
+
+#editor.active {
+    display: block;
 }

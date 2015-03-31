@@ -1,5 +1,6 @@
 (function () {
-  var editor = ace.edit("editor");
+  var editorEl = document.getElementById("editor");
+  var editor = ace.edit(editorEl);
   editor.setTheme("ace/theme/monokai");
   editor.getSession().setTabSize(2);
   editor.getSession().setUseSoftTabs(true);
@@ -14,9 +15,15 @@
       var code = editor.getValue();
       localStorage.setItem("bomberman-code", code);
       eval(code);
+      editorEl.classList.remove("active");
     }
   });
   var bind = Mousetrap.bind;
+  bind("ctrl+e", function () {
+      editorEl.classList.add("active");
+      editor.focus();
+
+  });
   var newImage = function (path) {
     return _.tap(new Image(), function (img) {
       img.src = path;
@@ -108,7 +115,7 @@
     ]
   });
   var game = null;
-  var boardSize = 640;
+  var boardSize = (window.innerWidth / 2);
   var tileRoot = 12;
   var tileSize = boardSize / tileRoot;
   var playerSize = tileSize / (4 / 3);
