@@ -210,8 +210,14 @@
 
 (defn create-explosions [board now bomb]
   (if (> now (:time bomb))
-    [{:dimension (assoc (:dimension bomb) :size explosion-size)
-      :time (+ (System/nanoTime) 500000000)}]
+    (let [explosion {:dimension (assoc (:dimension bomb) :size explosion-size)
+                     :time (+ now 500000000)}
+          {{:keys [x y]} :dimension} explosion]
+      [(update explosion :dimension assoc :x (- x tile-size))
+       (update explosion :dimension assoc :y (- y tile-size))
+       (update explosion :dimension assoc :x (+ x tile-size))
+       (update explosion :dimension assoc :y (+ y tile-size))
+       explosion])
     []))
 
 (defn place-bomb [board bombs player]
@@ -276,7 +282,7 @@
               "place-bomb"
               (swap! game (fn [g]
                             (if-let [bomb (place-bomb (:board g) (:bombs g) (find-player g id))]
-                              (update-in g [:bombs] conj bomb)
+                              (update g :bombs conj bomb)
                               g)))
               "start-movement"
               (swap! game (fn [g]
