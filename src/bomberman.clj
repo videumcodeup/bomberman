@@ -38,7 +38,7 @@
 
 (def immortal-time 3000000000)
 
-(def player-names ["alpha" "beta" "gamma" "delta" "epsilon" "zeta" "eta" "theta" "iota" "kappa"])
+(def player-names #{"alpha" "beta" "gamma" "delta" "epsilon" "zeta" "eta" "theta" "iota" "kappa"})
 
 (def max-players (Integer/parseInt (or (System/getenv "max_players") "10")))
 
@@ -86,7 +86,7 @@
                  :board initial-board
                  :bombs #{}
                  :explosions #{}
-                 :players []}))
+                 :players #{}}))
 
 (def axises {:left :x, :up :y, :right :x, :down :y})
 
@@ -370,7 +370,8 @@
                                                      :dimension (place-player (:board g))
                                                      :immortal true
                                                      :immortal-time (+ (System/nanoTime) immortal-time)
-                                                     :name (player-names (count (:player g)))})))
+                                                     :name (let [pns (set (map :name (:players g)))]
+                                                             (first (filter #(not (pns %)) player-names)))})))
         (send! channel (game->json @game))))))
 
 (defn -main []
