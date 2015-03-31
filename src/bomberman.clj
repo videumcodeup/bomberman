@@ -337,7 +337,7 @@
                               (let [p ((:players g) id)]
                                 (update g :players assoc id (assoc p :movement {:direction (keyword (first arguments))
                                                                                 :dimension (:dimension p)
-                                                                                :speed (quot tile-root 2)
+                                                                                :speed (quot tile-root 4)
                                                                                 :time now})))))
                 "stop-movement"
                 (swap! game (fn [g]
